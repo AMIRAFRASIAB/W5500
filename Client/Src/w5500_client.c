@@ -1,6 +1,7 @@
 
 #include "w5500_client.h"
 #include "w5500_spi_driver.h"
+#include "w5500_config.h"
 #include "main.h"
 
 #if W5500_TRACE_ENABLE == YES 
@@ -52,6 +53,10 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
   }
   #endif
   LOG_TRACE("W5500 :: Client initializing...");
+  if (!w5500_spi_init()) {
+    LOG_ERROR("W5500 :: Failed to initial the SPI");
+    return false;
+  }
   reg_wizchip_cs_cbfunc(w5500_cs_low, w5500_cs_high);
   reg_wizchip_spi_cbfunc(w5500_spi_Receive1Byte, w5500_spi_Transmit1Byte);  
   reg_wizchip_spiburst_cbfunc(w5500_spi_ReceiveBurstDMA, w5500_spi_TransmitBurstDMA);  
@@ -60,11 +65,11 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     { 2, 2, 2, 2, 2, 2, 2, 2 },
     { 2, 2, 2, 2, 2, 2, 2, 2 },
   };
-  if (ctlwizchip(CW_INIT_WIZCHIP, (void*) memsize) == -1) {
+  if (ctlwizchip(CW_INIT_WIZCHIP, (void*)memsize) == -1) {
 		LOG_ERROR("W5500 :: Failed to initial the LAN module");
 		return false;
 	}
-  ctlnetwork(CN_SET_NETINFO, (void*)&INFO);
+  ctlnetwork(CN_SET_NETINFO, (void*)&INFO->info);
   if (!w5500_cable_getStatus(10, 500)) {
     LOG_ERROR("W5500 :: Cable is not connected");
     return false;
@@ -121,6 +126,10 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
     return false;
   }
   #endif
+  if (!w5500_cable_getStatus(1, 0)) {
+    LOG_ERROR("W5500 :: Cable disconnect");
+    return false;
+  }
   uint8_t status = getSn_SR(1);
   if (status == SOCK_ESTABLISHED) {
     // Already connected
@@ -144,14 +153,4 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   return true;
 }
 //--------------------------------------------------------------------------
-//bool w5500_client_check_and_reconnect (const W5500_Cnf_t* INFO) {
-//    if (!w5500_cable_getStatus(1, 100)) {
-//        LOG_ERROR("W5500 :: Cable disconnected");
-//        return false;
-//    }
-//    if (!w5500_client_is_connected()) {
-//        LOG_TRACE("W5500 :: Connection lost, trying to reconnect...");
-//        return w5500_client_reconnect(INFO);
-//    }
-//    return true;  // still connected
-//}
+

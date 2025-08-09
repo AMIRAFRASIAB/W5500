@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include "wizchip_conf.h"
 #include "socket.h"
-#include "w5500_config.h"
+
 
 typedef struct __W5500_Cnf_s {
   wiz_NetInfo   info;

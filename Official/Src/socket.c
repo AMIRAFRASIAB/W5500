@@ -54,7 +54,12 @@
 //
 //*****************************************************************************
 #include "socket.h"
+#include "w5500_config.h"
 
+#if W5500_USE_FreeRTOS==YES
+#include "FreeRTOS.h"
+#include "task.h"
+#endif
 //M20150401 : Typing Error
 //#define SOCK_ANY_PORT_NUM  0xC000;
 #define SOCK_ANY_PORT_NUM  0xC000
@@ -1059,7 +1064,11 @@ static int32_t recvfrom_IO_6(uint8_t sn, uint8_t * buf, uint16_t len, uint8_t * 
 	      {
    			wiz_recv_data(sn, head, 2);
    			setSn_CR(sn,Sn_CR_RECV);
-   			while(getSn_CR(sn));
+   			while(getSn_CR(sn)) {
+          #if W5500_USE_FreeRTOS==YES
+          taskYIELD();
+          #endif
+        }
    			// read peer's IP address, port number & packet length
     			sock_remained_size[sn] = head[0];
    			sock_remained_size[sn] = (sock_remained_size[sn] <<8) + head[1] -2;

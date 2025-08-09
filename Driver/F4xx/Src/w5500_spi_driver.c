@@ -9,7 +9,7 @@
 #include "swo.h"
 #include "main.h"
 
-#if W5500_SPI_USE_FreeRTOS == YES
+#if W5500_USE_FreeRTOS == YES
   #include "FreeRTOS.h"
   #include "task.h"
   #include "semphr.h"
@@ -142,7 +142,7 @@ static bool __w5500_spi_init (void) {
     LOG_ERROR("W5500 SPI :: Failed to initialize the spi");
     return false;
   }
-  #if W5500_SPI_USE_FreeRTOS == YES
+  #if W5500_USE_FreeRTOS == YES
   hSemaphore = xSemaphoreCreateBinary();
   if (hSemaphore == NULL) {
     LOG_ERROR("W5500 SPI :: Failed to create semaphore");
@@ -215,7 +215,7 @@ static uint8_t __w5500_spi_TransmitReceive1Byte (uint8_t data) {
     if (W5500_GetTick() - start > timeout) {
       return 0xFF;
     }
-    #if W5500_SPI_USE_FreeRTOS == YES
+    #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
@@ -224,7 +224,7 @@ static uint8_t __w5500_spi_TransmitReceive1Byte (uint8_t data) {
     if (W5500_GetTick() - start > timeout) {
       return 0xFF;
     }
-    #if W5500_SPI_USE_FreeRTOS == YES
+    #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
@@ -263,7 +263,7 @@ void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
       LOG_ERROR("W5500 :: spi tx :: busy flag timeout");
       return;
     }
-    #if W5500_SPI_USE_FreeRTOS == YES
+    #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
@@ -282,7 +282,7 @@ void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
   LL_DMA_SetDataLength(DMATx, LL_DMA_STREAM_Tx, len);
   LL_DMA_SetDataLength(DMARx, LL_DMA_STREAM_Rx, len);
   LL_SPI_Enable(SPI);
-  #if W5500_SPI_USE_FreeRTOS == YES
+  #if W5500_USE_FreeRTOS == YES
   xSemaphoreTake(hSemaphore, 0);
   LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
   LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
@@ -313,7 +313,7 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
       LOG_ERROR("W5500 :: spi rx :: busy flag timeout");
     }
-    #if W5500_SPI_USE_FreeRTOS == YES
+    #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
@@ -331,7 +331,7 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
   LL_DMA_SetMemoryAddress(DMARx, LL_DMA_STREAM_Rx, (uint32_t)buf);
   LL_DMA_SetDataLength(DMATx, LL_DMA_STREAM_Tx, len);
   LL_DMA_SetDataLength(DMARx, LL_DMA_STREAM_Rx, len);
-  #if W5500_SPI_USE_FreeRTOS == YES
+  #if W5500_USE_FreeRTOS == YES
   xSemaphoreTake(hSemaphore, 0);
   LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
   LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
@@ -354,7 +354,7 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
 #if W5500_SPI_USE_DMA == YES
 void W5500_DMA_RX_IRQHandler (void) {
   LL_DMA_ClearFlag(TC, W5500_DMA_RX_STREAM)(DMARx);
-  #if W5500_SPI_USE_FreeRTOS == YES
+  #if W5500_USE_FreeRTOS == YES
   xSemaphoreGiveFromISR(hSemaphore, NULL);
   #else 
   flag = 0;
