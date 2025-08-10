@@ -1,11 +1,12 @@
 
-#include "w5500_client.h"
 #include "w5500_spi_driver.h"
+#include "w5500_client.h"
 #include "w5500_config.h"
+#include "socket.h"
 #include "main.h"
 
 #if W5500_TRACE_ENABLE == YES 
-  #incldue "serial_debugger.h"
+  #include "serial_debugger.h"
 #else 
   #define LOG_TRACE(...)        
   #define LOG_INFO(...)
@@ -14,6 +15,10 @@
   #define LOG_FATAL(...)
 #endif
 
+#if W5500_USE_FreeRTOS == YES
+#include "FreeRTOS.h"
+#include "task.h"
+#endif
 
 #if (W5500_USER_NETWORK_CONFIG==NO)
 const W5500_Cnf_t STATIC_INFO = {
@@ -87,6 +92,9 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
 }
 //--------------------------------------------------------------------------
 int32_t w5500_client_transmit (uint8_t* buf, uint16_t len) {
+  if (buf == NULL || len == 0) {
+    return 0;
+  }
   int32_t ret = send(1, buf, len);
   if (ret == SOCK_ERROR) {
     LOG_ERROR("W5500 :: Send failed");
@@ -97,6 +105,9 @@ int32_t w5500_client_transmit (uint8_t* buf, uint16_t len) {
 }
 //--------------------------------------------------------------------------
 uint16_t w5500_client_receive (uint8_t* buf, uint16_t len) {
+  if (buf == NULL || len == 0) {
+    return 0;
+  }
   int32_t rx_size = getSn_RX_RSR(1);
   if (rx_size <= 0) {
     // No data or error

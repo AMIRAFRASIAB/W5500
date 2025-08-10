@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "wizchip_conf.h"
-#include "socket.h"
+
 
 
 typedef struct __W5500_Cnf_s {

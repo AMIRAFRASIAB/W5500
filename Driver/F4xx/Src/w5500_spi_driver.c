@@ -17,7 +17,7 @@
 #endif
 
 #if W5500_TRACE_ENABLE == YES 
-  #incldue "serial_debugger.h"
+  #include "serial_debugger.h"
 #else 
   #define LOG_TRACE(...)        
   #define LOG_INFO(...)
