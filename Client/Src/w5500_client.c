@@ -74,11 +74,19 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
 		LOG_ERROR("W5500 :: Failed to initial the LAN module");
 		return false;
 	}
+  LOG_TRACE("W5500 :: LAN Cable checking...");
   ctlnetwork(CN_SET_NETINFO, (void*)&INFO->info);
-  if (!w5500_cable_getStatus(10, 500)) {
-    LOG_ERROR("W5500 :: Cable is not connected");
+  if (!w5500_cable_getStatus(3, 100)) {
+    LOG_ERROR("W5500 :: Cable is not connect");
     return false;
   }
+  for (uint8_t i = 0; i < 8; i++) {
+    disconnect(i);
+    W5500_Delay(1);
+    close(i);
+  }
+//  setRTR((W5500_RETRY_CONN_DELAY * 10)); // Retry timeout in 100us units -> = 25 ms
+//  setRCR(W5500_RETRY_COUNTS);          // Retry count
   if (socket(1, Sn_MR_TCP, 0, 0) != 1) {
 	  LOG_ERROR("W5500 :: Failed to create the socket");
     return false;
@@ -164,4 +172,21 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   return true;
 }
 //--------------------------------------------------------------------------
-
+bool w5500_disconnect (uint32_t timeout_ms) {
+  uint8_t status = getSn_SR(1);
+  // Already closed
+  if (status == SOCK_CLOSED) {
+      return true;
+  }
+  disconnect(1);
+  uint32_t elapsed = 0;
+  while (getSn_SR(1) != SOCK_CLOSED && elapsed < timeout_ms) {
+    W5500_Delay(10);
+    elapsed += 10;
+  }
+  // If still not closed, force close
+  if (getSn_SR(1) != SOCK_CLOSED) {
+    close(1);
+  }
+  return (getSn_SR(1) == SOCK_CLOSED);
+}

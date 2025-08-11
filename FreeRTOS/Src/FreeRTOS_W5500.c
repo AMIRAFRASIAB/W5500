@@ -36,6 +36,7 @@ static void serviceW5500 (void* const pvParameters) {
   static uint16_t txSize;
   static TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
+  
   while (1) {
     vTaskDelayUntil(&xLastWakeTime, W5500_TASK_FREQUENCY_PERIOD);
     if (w5500_client_reconnect(info)) {
@@ -51,7 +52,7 @@ static void serviceW5500 (void* const pvParameters) {
   }
 }
 //-------------------------------------------------------------------------------
-bool FreeRTOS_w5500_client_inti (W5500_Cnf_t* cnf) {
+bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   LOG_TRACE("W5500 :: Initializing the RTOS driver...");
   bool status = true;
   info = cnf;
@@ -59,7 +60,7 @@ bool FreeRTOS_w5500_client_inti (W5500_Cnf_t* cnf) {
   status = status && (hMutexRx = xSemaphoreCreateMutex()) != NULL;
   status = status && (hStreamTx = xStreamBufferCreate(W5500_STREAM_BUF_TX_SIZE, 1)) != NULL;
   status = status && (hStreamRx = xStreamBufferCreate(W5500_STREAM_BUF_RX_SIZE, 1)) != NULL;
-  status = status && w5500_client_init(info);
+  w5500_client_init(info);
   status = status && xTaskCreate(&serviceW5500, "W5500", (W5500_TASK_STACK_SIZE_BYTES / 4), NULL, W5500_TASK_PRIORITY, &hTaskW5500) == pdTRUE;
   __initialized = status;
   if (!status) {
@@ -72,7 +73,7 @@ uint32_t FreeRTOS_w5500_client_transmit (uint8_t* buf, uint16_t len, uint32_t ti
   TimeOut_t xTimeOut;
   uint32_t byteSent = 0;
   uint32_t sent;
-  if (buf == NULL || len == 0)  {
+  if (!__initialized || buf == NULL || len == 0)  {
     return 0;
   }
   vTaskSetTimeOutState(&xTimeOut);
@@ -96,7 +97,7 @@ uint32_t FreeRTOS_w5500_client_transmit (uint8_t* buf, uint16_t len, uint32_t ti
 uint32_t FreeRTOS_w5500_client_receive (uint8_t* buf, uint8_t len, uint32_t ticksToWait) {
   TimeOut_t xTimeOut;
   uint16_t ret = 0;
-  if (buf == NULL || len == 0)  {
+  if (!__initialized || buf == NULL || len == 0)  {
     return 0;
   }
   vTaskSetTimeOutState(&xTimeOut);

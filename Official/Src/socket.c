@@ -469,8 +469,14 @@ static int8_t connect_IO_6 (uint8_t sn, uint8_t * addr, uint16_t port, uint8_t a
    }
    while(getSn_CR(sn));
    if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
+   
+   #if W5500_RETRY_COUNTS == 0
+   #error "W5500_RETRY_COUNTS can't be zero"
+   #endif
+   uint16_t retries = W5500_RETRY_COUNTS;
    while(getSn_SR(sn) != SOCK_ESTABLISHED)
-   {
+   {  
+      retries--;
       if (getSn_IR(sn) & Sn_IR_TIMEOUT)
       {
          setSn_IR(sn, Sn_IR_TIMEOUT);
@@ -481,6 +487,10 @@ static int8_t connect_IO_6 (uint8_t sn, uint8_t * addr, uint16_t port, uint8_t a
       {
          return SOCKERR_SOCKCLOSED;
       }
+      if (retries == 0) {
+        return SOCKERR_TIMEOUT;
+      }
+      W5500_Delay(W5500_RETRY_CONN_DELAY);
    } 
    
    return SOCK_OK;

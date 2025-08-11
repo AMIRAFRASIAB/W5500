@@ -11,7 +11,7 @@
 #define W5500_SPI                          1       
 #define W5500_SPI_TIMEOUT                  20      
 #define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV32
-#define W5500_TRACE_ENABLE                 NO
+#define W5500_TRACE_ENABLE                 YES
                                               
 #define W5500_CS_GPIO                      A       
 #define W5500_CS_PIN                       4       
@@ -42,14 +42,19 @@
 #define W5500_DMA_RX_NUM                   2
 #define W5500_DMA_RX_STREAM                2
 #define W5500_DMA_RX_CHANNEL               3
-#define W5500_DMA_RX_IRQ_PRIORITY          1
+#define W5500_DMA_RX_IRQ_PRIORITY          6
 #define W5500_DMA_RX_STREAM_PRIORITY       LL_DMA_PRIORITY_MEDIUM
 #endif                                     
                                            
-#define W5500_USE_FreeRTOS                 NO
+#define W5500_USE_FreeRTOS                 YES
 #if (W5500_USE_FreeRTOS==YES)
 #define W5500_GetTick                      xTaskGetTickCount
 #define W5500_Delay                        vTaskDelay
+#define W5500_STREAM_BUF_RX_SIZE           128
+#define W5500_STREAM_BUF_TX_SIZE           128
+#define W5500_TASK_STACK_SIZE_BYTES        1024
+#define W5500_TASK_PRIORITY                1
+#define W5500_TASK_FREQUENCY_PERIOD        100
 #else 
 #define W5500_GetTick                      HAL_GetTick
 #define W5500_Delay                        HAL_Delay
@@ -67,6 +72,8 @@
 #define W5500_DHCP                         NETINFO_STATIC /// NETINFO_STATIC or NETINFO_DHCP
 #endif  
 
+#define W5500_RETRY_CONN_DELAY             5
+#define W5500_RETRY_COUNTS                 2  
 
 #ifdef __cplusplus
   }
