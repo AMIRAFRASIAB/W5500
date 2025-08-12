@@ -1,4 +1,16 @@
 
+/**
+ * @file FreeRTOS_W5500.c
+ * @brief FreeRTOS-based W5500 Ethernet client driver.
+ *
+ * This file implements a FreeRTOS driver for the W5500 Ethernet module,
+ * managing TCP client communication using tasks, stream buffers, and mutexes.
+ * It provides initialization, transmit, receive, and disconnect functions.
+ * The driver handles reconnection logic and data flow using RTOS primitives.
+ *
+ * @author AMIR HOSEIN BAGHERI (Whitewolf97@yahoo.com)
+ * @date 2025-08-12
+ */
 #include "FreeRTOS_W5500.h"
 #include "w5500_config.h"
 #include "w5500_client.h"
@@ -29,6 +41,14 @@ static uint8_t __initialized = 0;
 static W5500_Cnf_t* info = NULL;
 
 //-------------------------------------------------------------------------------
+/**
+ * @brief FreeRTOS task function to service W5500 client communication.
+ *
+ * Periodically (W5500_TASK_FREQUENCY_PERIOD) runs to handle reconnect attempts, receive data from W5500,
+ * push received data into the RX stream buffer, and transmit data from the TX stream buffer.
+ *
+ * @param[in] pvParameters Pointer to task parameters (unused).
+ */
 static void serviceW5500 (void* const pvParameters) {
   static uint8_t rxBuf[W5500_STREAM_BUF_RX_SIZE];
   static uint8_t txBuf[W5500_STREAM_BUF_TX_SIZE];
@@ -52,6 +72,15 @@ static void serviceW5500 (void* const pvParameters) {
   }
 }
 //-------------------------------------------------------------------------------
+/**
+ * @brief Initialize the FreeRTOS W5500 client driver.
+ *
+ * Creates RTOS synchronization primitives (mutexes, stream buffers),
+ * initializes the W5500 client network stack, and starts the service task.
+ *
+ * @param[in] cnf Pointer to the W5500_Cnf_t configuration structure.
+ * @return true if initialization succeeded, false otherwise.
+ */
 bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   LOG_TRACE("W5500 :: Initializing the RTOS driver...");
   bool status = true;
@@ -69,6 +98,19 @@ bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   return status;
 }
 //-------------------------------------------------------------------------------
+/**
+ * @brief Transmit data using the FreeRTOS W5500 client driver.
+ *
+ * Adds data to the TX stream buffer protected by a mutex.
+ * This function attempts to queue **all** bytes from `buf` into the TX buffer,
+ * waiting up to `ticksToWait` ticks in total.
+ * It blocks as needed until all bytes are queued or the timeout expires.
+ *
+ * @param[in] buf Pointer to the data buffer to send.
+ * @param[in] len Number of bytes to send.
+ * @param[in] ticksToWait Maximum total ticks to wait for buffer space.
+ * @return Number of bytes successfully queued for transmission (0 if timeout or error).
+ */
 uint32_t FreeRTOS_w5500_client_transmit (uint8_t* buf, uint16_t len, uint32_t ticksToWait) {
   TimeOut_t xTimeOut;
   uint32_t byteSent = 0;
@@ -94,6 +136,20 @@ uint32_t FreeRTOS_w5500_client_transmit (uint8_t* buf, uint16_t len, uint32_t ti
   return byteSent;
 }
 //-------------------------------------------------------------------------------
+/**
+ * @brief Receive data using the FreeRTOS W5500 client driver.
+ *
+ * Attempts to receive up to `len` bytes from the RX stream buffer into `buf`.
+ * This function waits up to `ticksToWait` ticks to obtain the mutex and
+ * for data to become available in the buffer.
+ *
+ * @param[out] buf Pointer to the buffer where received data will be stored.
+ * @param[in] len Maximum number of bytes to receive.
+ * @param[in] ticksToWait Maximum ticks to wait for data and mutex availability.
+ *
+ * @return Number of bytes actually received from the RX buffer.
+ *         Returns 0 if timeout occurs, buffer is NULL, length is zero, or driver is uninitialized.
+ */
 uint32_t FreeRTOS_w5500_client_receive (uint8_t* buf, uint8_t len, uint32_t ticksToWait) {
   TimeOut_t xTimeOut;
   uint16_t ret = 0;
@@ -110,4 +166,17 @@ uint32_t FreeRTOS_w5500_client_receive (uint8_t* buf, uint8_t len, uint32_t tick
   return ret;
 }
 //-------------------------------------------------------------------------------
-
+/**
+ * @brief Disconnect the FreeRTOS W5500 client and stop its service task.
+ *
+ * This function suspends the W5500 service task to stop ongoing
+ * communication and then gracefully disconnects the W5500 client socket
+ * with a timeout of 10 milliseconds.
+ *
+ * After calling this function, the client will no longer send or receive data
+ * until reinitialized or the service task is resumed.
+ */
+void FreeRTOS_w5500_client_disconnect (void) {
+  vTaskSuspend(hTaskW5500);
+  w5500_client_disconnect(10);
+}

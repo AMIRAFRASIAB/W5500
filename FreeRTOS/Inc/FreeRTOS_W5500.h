@@ -13,6 +13,7 @@
 bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf);
 uint32_t FreeRTOS_w5500_client_transmit (uint8_t* buf, uint16_t len, uint32_t ticksToWait);
 uint32_t FreeRTOS_w5500_client_receive (uint8_t* buf, uint8_t len, uint32_t ticksToWait);
+void FreeRTOS_w5500_client_disconnect (void);
 
 #ifdef __cplusplus
   }

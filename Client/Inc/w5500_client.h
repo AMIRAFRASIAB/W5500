@@ -24,7 +24,7 @@ int32_t w5500_client_transmit (uint8_t* buf, uint16_t len);
 uint16_t w5500_client_receive (uint8_t* buf, uint16_t len);
 bool w5500_client_is_connected (void);
 bool w5500_client_reconnect (const W5500_Cnf_t* INFO);
-bool w5500_disconnect (uint32_t timeout_ms);
+bool w5500_client_disconnect (uint32_t timeout_ms);
 
 #ifdef __cpluplus
   }

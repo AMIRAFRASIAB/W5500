@@ -1,4 +1,22 @@
-
+/**
+ * @file w5500_config.h
+ * @brief Configuration macros for W5500 Ethernet module driver.
+ *
+ * This header file provides all the configurable macros related to
+ * hardware pin assignments, SPI interface settings, DMA configuration,
+ * FreeRTOS integration, and default network parameters for the W5500
+ * Ethernet controller.
+ *
+ * Users should modify these macros to match their specific hardware
+ * setup and project requirements before compiling the W5500 driver.
+ *
+ * @note Ensure GPIO pins, SPI settings, and DMA streams correspond to
+ *       the target MCU and board design.
+ *
+ * @author AMIR HOSEIN BAGHERI  (whitewolf97@yahoo.com)
+ * @date [2025-8-12]
+ */
+ 
 #ifndef __W5500_CONFIG_H_
 #define __W5500_CONFIG_H_
 
@@ -10,7 +28,7 @@
 
 #define W5500_SPI                          1       
 #define W5500_SPI_TIMEOUT                  20      
-#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV32
+#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV8
 #define W5500_TRACE_ENABLE                 YES
                                               
 #define W5500_CS_GPIO                      A       
@@ -50,8 +68,8 @@
 #if (W5500_USE_FreeRTOS==YES)
 #define W5500_GetTick                      xTaskGetTickCount
 #define W5500_Delay                        vTaskDelay
-#define W5500_STREAM_BUF_RX_SIZE           128
-#define W5500_STREAM_BUF_TX_SIZE           128
+#define W5500_STREAM_BUF_RX_SIZE           64
+#define W5500_STREAM_BUF_TX_SIZE           64
 #define W5500_TASK_STACK_SIZE_BYTES        1024
 #define W5500_TASK_PRIORITY                1
 #define W5500_TASK_FREQUENCY_PERIOD        100
@@ -78,4 +96,4 @@
 #ifdef __cplusplus
   }
 #endif   
-#endif //__W5500_CONFIG_H_
+#endif //__W5500_CONFIG_H_  
