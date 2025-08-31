@@ -7,7 +7,7 @@
 #include "w5500_config.h"
 #include "w5500_spi_driver.h"
 #include "swo.h"
-#include "main.h"
+
 
 #if W5500_USE_FreeRTOS == YES
   #include "FreeRTOS.h"

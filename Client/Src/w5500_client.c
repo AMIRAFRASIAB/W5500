@@ -24,7 +24,7 @@
 #include "w5500_client.h"
 #include "w5500_config.h"
 #include "socket.h"
-#include "main.h"
+
 
 #if W5500_TRACE_ENABLE == YES 
   #include "serial_debugger.h"
