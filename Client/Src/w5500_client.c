@@ -81,6 +81,15 @@ bool w5500_cable_getStatus (uint8_t tries, uint16_t delay) {
   return false;
 }
 //--------------------------------------------------------------------------
+bool w5500_check_presence (void) {
+  uint8_t version = getVERSIONR(); 
+  if (version != 0x04) {
+      LOG_ERROR("W5500 :: ic not detected (read=0x%02X)", version);
+      return false;
+  }
+  return true;
+}
+//--------------------------------------------------------------------------
 /**
  * @brief Initialize the W5500 Ethernet client with the specified network configuration.
  *
@@ -127,15 +136,21 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     { 2, 2, 2, 2, 2, 2, 2, 2 },
     { 2, 2, 2, 2, 2, 2, 2, 2 },
   };
+  w5500_spi_Transmit1Byte(0x00);
+  W5500_Delay(1);
   if (ctlwizchip(CW_INIT_WIZCHIP, (void*)memsize) == -1) {
 		LOG_ERROR("W5500 :: Failed to initial the LAN module");
 		return false;
 	}
+  W5500_Delay(1);
+  // Check W5500 ic presence
+  if (!w5500_check_presence()) {
+    return false;
+  }  
   LOG_TRACE("W5500 :: LAN Cable checking...");
   ctlnetwork(CN_SET_NETINFO, (void*)&INFO->info);
   if (!w5500_cable_getStatus(3, 100)) {
     LOG_ERROR("W5500 :: Cable is not connect");
-    return false;
   }
   for (uint8_t i = 0; i < 8; i++) {
     disconnect(i);
@@ -146,11 +161,9 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
 //  setRCR(W5500_RETRY_COUNTS);          // Retry count
   if (socket(1, Sn_MR_TCP, 0, 0) != 1) {
 	  LOG_ERROR("W5500 :: Failed to create the socket");
-    return false;
   }
   if (connect(1, (uint8_t*)INFO->dest_ip, INFO->port) != SOCK_OK) {
     LOG_ERROR("W5500 :: Can't connect to the server");
-    return false;
   }
   LOG_TRACE("W5500 :: Initial success");
   return true;
@@ -255,7 +268,7 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   }
   #endif
   if (!w5500_cable_getStatus(1, 0)) {
-    LOG_ERROR("W5500 :: Cable disconnect");
+    LOG_TRACE("W5500 :: Cable disconnect");
     return false;
   }
   uint8_t status = getSn_SR(1);
@@ -269,12 +282,12 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   }
   // Create socket again
   if (socket(1, Sn_MR_TCP, 0, 0) != 1) {
-    LOG_ERROR("W5500 :: Failed to create socket");
+    LOG_TRACE("W5500 :: Failed to create socket");
     return false;
   }
   // Attempt to connect to the server
   if (connect(1, (uint8_t*)INFO->dest_ip, INFO->port) != SOCK_OK) {
-    LOG_ERROR("W5500 :: Connect attempt failed");
+    LOG_TRACE("W5500 :: Connect attempt failed");
     return false;
   }
   LOG_TRACE("W5500 :: Connected successfully");
@@ -299,16 +312,7 @@ bool w5500_client_disconnect (uint32_t timeout_ms) {
   if (status == SOCK_CLOSED) {
       return true;
   }
-  disconnect(1);
-  uint32_t elapsed = 0;
-  while (getSn_SR(1) != SOCK_CLOSED && elapsed < timeout_ms) {
-    W5500_Delay(10);
-    elapsed += 10;
-  }
-  // If still not closed, force close
-  if (getSn_SR(1) != SOCK_CLOSED) {
-    close(1);
-  }
+  close(1);
   return (getSn_SR(1) == SOCK_CLOSED);
 }
 //--------------------------------------------------------------------------
