@@ -327,7 +327,15 @@ int8_t socket(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag)
    }
    setSn_PORTR(sn,port);
    setSn_CR(sn,Sn_CR_OPEN);
-   while(getSn_CR(sn));
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }
    //A20150401 : For release the previous sock_io_mode
    sock_io_mode &= ~(1 <<sn);
    //
@@ -342,7 +350,15 @@ int8_t socket(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag)
    //sock_pack_info[sn] = 0;
    sock_pack_info[sn] = PACK_COMPLETED;//PACK_COMPLETED //TODO::need verify:LINAN 20250421
   //
-   while(getSn_SR(sn) == SOCK_CLOSED);
+   
+   while(getSn_SR(sn) == SOCK_CLOSED) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }
    return (int8_t)sn;
 }  
 
@@ -376,7 +392,16 @@ int8_t close(uint8_t sn)
 #endif 
    setSn_CR(sn,Sn_CR_CLOSE);
    /* wait to process the command... */
-   while( getSn_CR(sn) );
+   
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }
    /* clear all interrupt of SOCKETn. */
    setSn_IR(sn, 0xFF);  	
 	//A20150401 : Release the sock_io_mode of socket n.
@@ -385,7 +410,14 @@ int8_t close(uint8_t sn)
    sock_is_sending &= ~(1<<sn);
    sock_remained_size[sn] = 0;
    sock_pack_info[sn] = PACK_NONE;
-   while(getSn_SR(sn) != SOCK_CLOSED);
+   while(getSn_SR(sn) != SOCK_CLOSED) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }
    return SOCK_OK;
 }
 
@@ -395,7 +427,15 @@ int8_t listen(uint8_t sn)
    CHECK_TCPMODE(); 
    CHECK_SOCKINIT();
    setSn_CR(sn,Sn_CR_LISTEN);
-   while(getSn_CR(sn));
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }
    while(getSn_SR(sn) != SOCK_LISTEN)
    {
       close(sn);
@@ -467,7 +507,15 @@ static int8_t connect_IO_6 (uint8_t sn, uint8_t * addr, uint16_t port, uint8_t a
 	   //setSn_DPORT(sn,port); //TODO::need verify:LINAN 20250421
       setSn_CR(sn,Sn_CR_CONNECT);
    }
-   while(getSn_CR(sn));
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }
    if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
    
    #if W5500_RETRY_COUNTS == 0
@@ -504,7 +552,15 @@ int8_t disconnect(uint8_t sn)
    {
       setSn_CR(sn,Sn_CR_DISCON);
       /* wait to process the command... */
-      while(getSn_CR(sn));
+      uint32_t startTick = W5500_GetTick();
+      while(getSn_CR(sn)) {
+        if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+          return -1;
+        }
+        #if W5500_USE_FreeRTOS == YES
+        taskYIELD();
+        #endif
+      }
 	   sock_is_sending &= ~(1<<sn);
       if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
       while(getSn_SR(sn) != SOCK_CLOSED)
@@ -602,7 +658,16 @@ int32_t send(uint8_t sn, uint8_t * buf, uint16_t len)
    }
    setSn_CR(sn,Sn_CR_SEND);
  
-   while(getSn_CR(sn));   // wait to process the command...
+   // wait to process the command...
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }   
    sock_is_sending |= (1<<sn);
  
    return len;
@@ -742,7 +807,15 @@ int32_t recv(uint8_t sn, uint8_t * buf, uint16_t len)//lihan
    if(recvsize < len) len = recvsize;
    wiz_recv_data(sn, buf, len); 
    setSn_CR(sn,Sn_CR_RECV); 
-   while(getSn_CR(sn));  
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }   
 #endif
      
    //M20150409 : Explicit Type Casting
@@ -876,7 +949,15 @@ static int32_t sendto_IO_6(uint8_t sn, uint8_t * buf, uint16_t len, uint8_t * ad
    setSn_CR(sn,Sn_CR_SEND);
 #endif 
    /* wait to process the command... */
-   while(getSn_CR(sn));
+   uint32_t startTick = W5500_GetTick();
+   while(getSn_CR(sn)) {
+     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+       return -1;
+     }
+     #if W5500_USE_FreeRTOS == YES
+     taskYIELD();
+     #endif
+   }   
    while(1)
    {
       tmp = getSn_IR(sn);
@@ -1074,7 +1155,11 @@ static int32_t recvfrom_IO_6(uint8_t sn, uint8_t * buf, uint16_t len, uint8_t * 
 	      {
    			wiz_recv_data(sn, head, 2);
    			setSn_CR(sn,Sn_CR_RECV);
+        uint32_t startTick = W5500_GetTick();
    			while(getSn_CR(sn)) {
+          if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+            return -1;
+          }
           #if W5500_USE_FreeRTOS==YES
           taskYIELD();
           #endif
@@ -1107,7 +1192,15 @@ static int32_t recvfrom_IO_6(uint8_t sn, uint8_t * buf, uint16_t len, uint8_t * 
 #ifndef IPV6_AVAILABLE
             wiz_recv_data(sn, head, 6);
             setSn_CR(sn,Sn_CR_RECV);
-            while(getSn_CR(sn));
+            uint32_t startTick = W5500_GetTick();
+            while(getSn_CR(sn)) {
+              if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+                return -1;
+              }
+              #if W5500_USE_FreeRTOS == YES
+              taskYIELD();
+              #endif
+            }   
             addr[0] = head[0];
             addr[1] = head[1];
             addr[2] = head[2];
@@ -1167,7 +1260,15 @@ static int32_t recvfrom_IO_6(uint8_t sn, uint8_t * buf, uint16_t len, uint8_t * 
 #else 
 	setSn_CR(sn,Sn_CR_RECV);
 	/* wait to process the command... */
-	while(getSn_CR(sn)) ;
+	uint32_t startTick = W5500_GetTick();
+  while(getSn_CR(sn)) {
+    if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+      return -1;
+    }
+    #if W5500_USE_FreeRTOS == YES
+    taskYIELD();
+    #endif
+  }   
 	sock_remained_size[sn] -= pack_len;
 	//M20150601 : 
 	//if(sock_remained_size[sn] != 0) sock_pack_info[sn] |= 0x01;
@@ -1279,6 +1380,7 @@ int8_t  setsockopt(uint8_t sn, sockopt_type sotype, void* arg)
          if(getSn_KPALVTR(sn) != 0) return SOCKERR_SOCKOPT;
 #endif 
          setSn_CR(sn,Sn_CR_SEND_KEEP);
+         uint32_t startTick = W5500_GetTick();
          while(getSn_CR(sn) != 0)
          {     
 // M20131220
@@ -1288,6 +1390,12 @@ int8_t  setsockopt(uint8_t sn, sockopt_type sotype, void* arg)
                setSn_IR(sn, Sn_IR_TIMEOUT);
                return SOCKERR_TIMEOUT;
             }
+            if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+              return SOCKERR_TIMEOUT;
+            }
+            #if W5500_USE_FreeRTOS == YES
+            taskYIELD();
+            #endif
          }
          break;
    #if _WIZCHIP_ > 5200

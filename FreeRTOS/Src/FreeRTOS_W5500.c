@@ -54,15 +54,19 @@ static void serviceW5500 (void* const pvParameters) {
   static uint8_t txBuf[W5500_STREAM_BUF_TX_SIZE];
   static uint16_t rxSize;
   static uint16_t txSize;
-  
+  uint32_t period = W5500_TASK_FREQUENCY_PERIOD;
   while (1) {
+    vTaskDelay(period);
     if (!w5500_check_presence()) {
-      LOG_ERROR("W5500 :: Module is not responding -> Disabling task");
+      LOG_ERROR("W5500: Module not responding, task disabled");
       vTaskSuspend(NULL);
     }
-    vTaskDelay(W5500_TASK_FREQUENCY_PERIOD);
-    while (!w5500_client_reconnect(info)) {
-      vTaskDelay(W5500_CHECK_FREQUENCY_PERIOD);
+    if (!w5500_client_reconnect(info)) {
+      period = W5500_CHECK_FREQUENCY_PERIOD;
+      continue;
+    }
+    else {
+      period = W5500_TASK_FREQUENCY_PERIOD;
     }
     //Receive
     rxSize = w5500_client_receive(rxBuf, sizeof(rxBuf));
