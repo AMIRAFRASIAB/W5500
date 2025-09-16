@@ -26,6 +26,7 @@
 #include "socket.h"
 
 
+
 #if W5500_TRACE_ENABLE == YES 
   #include "serial_debugger.h"
 #else 

@@ -37,9 +37,10 @@ static StreamBufferHandle_t hStreamTx = NULL;
 static StreamBufferHandle_t hStreamRx = NULL;
 static SemaphoreHandle_t hMutexTx = NULL;
 static SemaphoreHandle_t hMutexRx = NULL;
-static uint8_t __initialized = 0;
+static bool __initialized = false;
 static W5500_Cnf_t* info = NULL;
-
+void (*lan_connected_callback) (void)     = NULL;
+void (*lan_disconnected_callback) (void)  = NULL;
 //-------------------------------------------------------------------------------
 /**
  * @brief FreeRTOS task function to service W5500 client communication.
@@ -63,10 +64,16 @@ static void serviceW5500 (void* const pvParameters) {
     }
     if (!w5500_client_reconnect(info)) {
       period = W5500_CHECK_FREQUENCY_PERIOD;
+      if (lan_disconnected_callback != NULL) {
+        lan_disconnected_callback();
+      }
       continue;
     }
     else {
       period = W5500_TASK_FREQUENCY_PERIOD;
+    }
+    if (lan_connected_callback != NULL) {
+      lan_connected_callback();
     }
     //Receive
     rxSize = w5500_client_receive(rxBuf, sizeof(rxBuf));
@@ -90,6 +97,9 @@ static void serviceW5500 (void* const pvParameters) {
  */
 bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   LOG_TRACE("W5500 :: Initializing the RTOS driver...");
+  if (__initialized) {
+    return true;
+  }
   bool status = true;
   info = cnf;
   status = status && (hMutexTx = xSemaphoreCreateMutex()) != NULL;
@@ -185,6 +195,8 @@ uint32_t FreeRTOS_w5500_client_receive (uint8_t* buf, uint8_t len, uint32_t tick
  * until reinitialized or the service task is resumed.
  */
 void FreeRTOS_w5500_client_disconnect (void) {
-  vTaskSuspend(hTaskW5500);
-  w5500_client_disconnect(10);
+  if (__initialized) {
+    vTaskSuspend(hTaskW5500);
+    w5500_client_disconnect(10);
+  }
 }
