@@ -29,28 +29,28 @@
 
 #define W5500_SPI                          1
 #define W5500_SPI_TIMEOUT                  10
-#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV8
+#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV64
 #define W5500_TRACE_ENABLE                 NO
                                               
-#define W5500_CS_GPIO                      A
-#define W5500_CS_PIN                       15
+#define W5500_CS_GPIO                      B
+#define W5500_CS_PIN                       0
 
 #define W5500_RST_GPIO                     B
-#define W5500_RST_PIN                      5
+#define W5500_RST_PIN                      1
                                              
-#define W5500_MOSI_GPIO                    C
-#define W5500_MOSI_PIN                     12
-#define W5500_MOSI_AF                      6
+#define W5500_MOSI_GPIO                    A
+#define W5500_MOSI_PIN                     7
+#define W5500_MOSI_AF                      0
                                            
-#define W5500_MISO_GPIO                    B
-#define W5500_MISO_PIN                     4
-#define W5500_MISO_AF                      6
+#define W5500_MISO_GPIO                    A
+#define W5500_MISO_PIN                     6
+#define W5500_MISO_AF                      0
                                            
-#define W5500_SCLK_GPIO                    B
-#define W5500_SCLK_PIN                     3
-#define W5500_SCLK_AF                      6
+#define W5500_SCLK_GPIO                    A
+#define W5500_SCLK_PIN                     5
+#define W5500_SCLK_AF                      0
                                            
-#define W5500_SPI_USE_DMA                  YES
+#define W5500_SPI_USE_DMA                  NO
                                               
 #if (W5500_SPI_USE_DMA==YES)             
 #define W5500_DMA_TX_NUM                   1
@@ -84,8 +84,8 @@
 #define W5500_USER_NETWORK_CONFIG          NO
 #if (W5500_USER_NETWORK_CONFIG==NO)
 #define W5500_MAC_ADDRESS                  0x00, 0x08, 0xDC, 0xAB, 0xCD, 0xEF
-#define W5500_PORT                         8234
-#define W5500_OWN_IP                       192, 168, 14, 4
+#define W5500_PORT                         8237
+#define W5500_OWN_IP                       192, 168, 14, 7
 #define W5500_DESTINATION_IP               192, 168, 14, 2
 #define W5500_SUBNET                       255, 255, 255, 0
 #define W5500_GATEWAY                      192, 168, 14, 1
@@ -95,7 +95,7 @@
 
 #define W5500_RETRY_CONN_DELAY             5
 #define W5500_RETRY_COUNTS                 2
-#define W5500_APIs_TIMEOUT                 100
+#define W5500_APIs_TIMEOUT                 50
 
 /* Exported functions */
 extern uint32_t sysTick_getTick (void);

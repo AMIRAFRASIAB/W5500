@@ -82,11 +82,13 @@ bool w5500_cable_getStatus (uint8_t tries, uint16_t delay) {
   return false;
 }
 //--------------------------------------------------------------------------
+#include "stm32f0xx_ll_spi.h"
+__USED uint8_t data;
 bool w5500_check_presence (void) {
   uint8_t version = getVERSIONR(); 
-  if (version != 0x04) {
-      LOG_ERROR("W5500 :: ic not detected (read=0x%02X)", version);
-      return false;
+   if (version != 0x04) {
+    LOG_ERROR("W5500 :: ic not detected (read=0x%02X)", version);
+    return false;
   }
   return true;
 }
@@ -137,7 +139,6 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     { 2, 2, 2, 2, 2, 2, 2, 2 },
     { 2, 2, 2, 2, 2, 2, 2, 2 },
   };
-  w5500_spi_Transmit1Byte(0x00);
   W5500_Delay(1);
   if (ctlwizchip(CW_INIT_WIZCHIP, (void*)memsize) == -1) {
 		LOG_ERROR("W5500 :: Failed to initial the LAN module");

@@ -72,7 +72,7 @@ static void __w5500_gpio_init (void) {
   // CS
   __HAL_RCC_CS_CLK_ENABLE();
   LL_GPIO_SetPinMode(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_MODE_OUTPUT);
-  LL_GPIO_SetPinSpeed(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_SPEED_FREQ_MEDIUM);
+  LL_GPIO_SetPinSpeed(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_SPEED_FREQ_LOW);
   LL_GPIO_LockPin(GPIO_CS, LL_GPIO_PIN_CS);
   
   // RST
@@ -135,6 +135,7 @@ static bool __w5500_spi_init (void) {
     LOG_ERROR("W5500 SPI :: Failed to initialize the spi");
     return false;
   }
+  LL_SPI_SetRxFIFOThreshold(SPI, LL_SPI_RX_FIFO_TH_QUARTER);
   #if W5500_USE_FreeRTOS == YES
   hSemaphore = xSemaphoreCreateBinary();
   if (hSemaphore == NULL) {
@@ -201,7 +202,7 @@ static void __w5500_dma_init (void) {
 static uint8_t __w5500_spi_TransmitReceive1Byte (uint8_t data) {
   uint32_t timeout = W5500_SPI_TIMEOUT;
   uint32_t start = W5500_GetTick();
-  while (!LL_SPI_IsActiveFlag_TXE(SPI)) {
+  while (!LL_SPI_IsActiveFlag_TXE(SPI) || LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - start > timeout) {
       return 0xFF;
     }
@@ -209,17 +210,18 @@ static uint8_t __w5500_spi_TransmitReceive1Byte (uint8_t data) {
     taskYIELD();
     #endif
   }
+  LL_SPI_ClearFlag_OVR(SPI);
   LL_SPI_TransmitData8(SPI, data);
   while (!LL_SPI_IsActiveFlag_RXNE(SPI)) {
     if (W5500_GetTick() - start > timeout) {
-      return 0xFF;
+      break;
     }
     #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
   uint8_t rxByte = LL_SPI_ReceiveData8(SPI);
-  (void)LL_SPI_ReadReg(SPI, SR);
+  rxByte = LL_SPI_ReceiveData8(SPI);
   return rxByte;
 }
 //-----------------------------------------------------------------------
@@ -234,11 +236,21 @@ void w5500_cs_high (void) {
 }
 //-----------------------------------------------------------------------
 void w5500_spi_Transmit1Byte (uint8_t data) {
+  #if W5500_SPI_USE_DMA == YES
+  w5500_spi_TransmitBurstDMA(&data, sizeof(data));
+  #else 
   __w5500_spi_TransmitReceive1Byte(data);
+  #endif 
 }
 //----------------------------------------------------------------------- 
 uint8_t w5500_spi_Receive1Byte (void) {
+  #if W5500_SPI_USE_DMA == YES
+  uint8_t ret;
+  w5500_spi_ReceiveBurstDMA(&ret, sizeof(ret));
+  return ret;
+  #else 
   return __w5500_spi_TransmitReceive1Byte(0x00);
+  #endif
 }
 //----------------------------------------------------------------------- 
 void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
@@ -247,6 +259,7 @@ void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
     __w5500_spi_TransmitReceive1Byte(*buf++);
   }
   #else 
+  static uint8_t dummy;
   uint32_t start = W5500_GetTick();
   while (LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
@@ -260,15 +273,13 @@ void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
   LL_SPI_ClearFlag_OVR(SPI);
   LL_DMA_DisableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   LL_DMA_DisableChannel(DMARx, LL_DMA_CHANNEL_Rx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_TX_CHANNEL)(DMATx);
-  LL_DMA_ClearFlag(TE, W5500_DMA_TX_CHANNEL)(DMATx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_RX_CHANNEL)(DMARx);
-  LL_DMA_ClearFlag(TE, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_RX_CHANNEL)(DMARx);
   LL_DMA_EnableIT_TC(DMARx, LL_DMA_CHANNEL_Rx);
   LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_MEMORY_INCREMENT);
   LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_MEMORY_NOINCREMENT);
   LL_DMA_SetMemoryAddress(DMATx, LL_DMA_CHANNEL_Tx, (uint32_t)buf);
-  LL_DMA_SetMemoryAddress(DMARx, LL_DMA_CHANNEL_Rx, (uint32_t)&rxByte);
+  LL_DMA_SetMemoryAddress(DMARx, LL_DMA_CHANNEL_Rx, (uint32_t)&dummy);
   LL_DMA_SetDataLength(DMATx, LL_DMA_CHANNEL_Tx, len);
   LL_DMA_SetDataLength(DMARx, LL_DMA_CHANNEL_Rx, len);
   LL_SPI_Enable(SPI);
@@ -302,13 +313,13 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
   while (LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
       LOG_ERROR("W5500 :: spi rx :: busy flag timeout");
+      return;
     }
     #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
   LL_SPI_ClearFlag_OVR(SPI);
-  static const uint8_t dummy = 0x00;
   LL_DMA_DisableChannel(DMARx, LL_DMA_CHANNEL_Rx);
   LL_DMA_DisableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   __DSB();
@@ -317,7 +328,8 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
   LL_DMA_EnableIT_TC(DMARx, LL_DMA_CHANNEL_Rx);
   LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_MEMORY_NOINCREMENT);
   LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_MEMORY_INCREMENT);
-  LL_DMA_SetMemoryAddress(DMATx, LL_DMA_CHANNEL_Tx, (uint32_t)(&dummy));
+  static const uint8_t TX_VALUE = 0x00;
+  LL_DMA_SetMemoryAddress(DMATx, LL_DMA_CHANNEL_Tx, (uint32_t)(&TX_VALUE));
   LL_DMA_SetMemoryAddress(DMARx, LL_DMA_CHANNEL_Rx, (uint32_t)buf);
   LL_DMA_SetDataLength(DMATx, LL_DMA_CHANNEL_Tx, len);
   LL_DMA_SetDataLength(DMARx, LL_DMA_CHANNEL_Rx, len);
@@ -343,7 +355,8 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
 //-----------------------------------------------------------------------
 #if W5500_SPI_USE_DMA == YES
 void W5500_DMA_RX_IRQHandler (void) {
-  LL_DMA_ClearFlag(TC, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_TX_CHANNEL)(DMATx);
   #if W5500_USE_FreeRTOS == YES
   xSemaphoreGiveFromISR(hSemaphore, NULL);
   #else 
@@ -359,6 +372,7 @@ bool w5500_spi_init (void) {
   LL_GPIO_ResetOutputPin(GPIO_RST, LL_GPIO_PIN_RST);
   W5500_Delay(10);
   LL_GPIO_SetOutputPin(GPIO_RST, LL_GPIO_PIN_RST);
+  W5500_Delay(50);
   status = __w5500_spi_init();
   __w5500_dma_init();
   return status;
