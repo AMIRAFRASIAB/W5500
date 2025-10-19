@@ -22,7 +22,7 @@
 
 
 #if W5500_TRACE_ENABLE == YES 
-  #include "serial_debugger.h"
+  #include W5500_DEBUG_LIB
 #else 
   #define LOG_TRACE(...)        
   #define LOG_INFO(...)
@@ -107,7 +107,6 @@ bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   status = status && (hStreamTx = xStreamBufferCreate(W5500_STREAM_BUF_TX_SIZE, 1)) != NULL;
   status = status && (hStreamRx = xStreamBufferCreate(W5500_STREAM_BUF_RX_SIZE, 1)) != NULL;
   status = status && w5500_client_init(info);
-  extern BaseType_t W5500_TaskCreate();
   status = status && W5500_TaskCreate(&serviceW5500, "W5500", (W5500_TASK_STACK_SIZE_BYTES / 4), NULL, W5500_TASK_PRIORITY, &hTaskW5500) == pdTRUE;
   __initialized = status;
   if (!status) {

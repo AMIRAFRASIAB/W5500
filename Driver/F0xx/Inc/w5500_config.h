@@ -30,7 +30,10 @@
 #define W5500_SPI                          1
 #define W5500_SPI_TIMEOUT                  10
 #define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV64
-#define W5500_TRACE_ENABLE                 NO
+#define W5500_TRACE_ENABLE                 YES
+#if (W5500_TRACE_ENABLE==YES)              
+#define W5500_DEBUG_LIB                    "debug.h"
+#endif
                                               
 #define W5500_CS_GPIO                      B
 #define W5500_CS_PIN                       0

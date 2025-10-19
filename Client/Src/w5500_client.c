@@ -28,7 +28,7 @@
 
 
 #if W5500_TRACE_ENABLE == YES 
-  #include "serial_debugger.h"
+  #include W5500_DEBUG_LIB
 #else 
   #define LOG_TRACE(...)        
   #define LOG_INFO(...)
@@ -82,7 +82,6 @@ bool w5500_cable_getStatus (uint8_t tries, uint16_t delay) {
   return false;
 }
 //--------------------------------------------------------------------------
-#include "stm32f0xx_ll_spi.h"
 __USED uint8_t data;
 bool w5500_check_presence (void) {
   uint8_t version = getVERSIONR(); 
