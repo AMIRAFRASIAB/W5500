@@ -10,10 +10,22 @@
 #include <stdbool.h>
 #include "w5500_client.h"
 
-bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf);
-uint32_t FreeRTOS_w5500_client_transmit (uint8_t* buf, uint16_t len, uint32_t ticksToWait);
-uint32_t FreeRTOS_w5500_client_receive (uint8_t* buf, uint8_t len, uint32_t ticksToWait);
-void FreeRTOS_w5500_client_disconnect (void);
+typedef struct {
+  uint8_t*    pucAddr;
+  uint32_t    ulLen;
+} W5500TxItem_t;
+
+typedef enum {
+  eW5500StateTryForConnection,
+  eW5500StateTransiver,
+  eW5500StateDisconnect,
+} W5500State_e;
+
+W5500State_e xFreeRTOSW5500GetTaskState (void);
+bool bFreeRTOSW5500ClientInit (W5500_Cnf_t* pxConfig);
+uint32_t ulFreeRTOSW5500ClientReceive (uint8_t* buf, uint8_t len, uint32_t ticksToWait);
+void vFreeRTOSW5500TaskDisable (void);
+void vFreeRTOSW5500Transmit (W5500TxItem_t* pxItem);
 
 #ifdef __cplusplus
   }

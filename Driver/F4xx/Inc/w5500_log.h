@@ -1,0 +1,35 @@
+
+#ifndef _W5500_LOG_H_
+#define _W5500_LOG_H_
+
+
+#define W5500_LOG_IRQ_INIT()               //LOG_TRACE("W5500: GPIO: IRQ initializing\n")
+#define W5500_LOG_GPIO_INIT()              //LOG_TRACE("W5500: GPIO: initializing\n")
+#define W5500_LOG_SPI_INIT()               //LOG_TRACE("W5500: SPI: initializing\n")
+#define W5500_LOG_SPI_INIT_FAIL()          //LOG_ERROR("W5500: SPI: Failed to initialize\n")
+#define W5500_LOG_SPI_SMPHR_CREATE_FAIL()  //LOG_ERROR("W5500: SPI: Failed to create semaphore\n")
+#define W5500_LOG_DMA_INIT()               //LOG_TRACE("W5500: DMA: initializing\n")
+#define W5500_LOG_SPI_TX_BUSY()            //LOG_ERROR("W5500: SPI: Tx: Busy flag timeout\n")
+#define W5500_LOG_SMPHR_TAKE_FAIL()        //LOG_ERROR("W5500: SPI: Failed to take the semaphore\n")
+#define W5500_LOG_SPI_RX_BUSY()            //LOG_ERROR("W5500: SPI: Rx: Busy flag timeout\n")
+#define W5500_LOG_VERSION_UNKNOWN()        //LOG_ERROR("W5500: check_presence: Unknown version != 0x04\n")
+#define W5500_LOG_CONFIG_NULL()            //LOG_ERROR("W5500: Config NULL\n")
+#define W5500_LOG_CLIENT_INIT()            //LOG_TRACE("W5500: client_init: Initializing...\n")
+#define W5500_LOG_CLIENT_INIT_FAIL()       //LOG_ERROR("W5500: client_init: Failed to initial\n")
+#define W5500_LOG_CABLE_DISCONNECT()       //LOG_ERROR("W5500: cable_getStatus: PHY_LINK_OFF\n")
+#define W5500_LOG_TRANSMIT_FAIL()          //LOG_ERROR("W5500: client_transmit: Failed\n")
+#define W5500_LOG_RECEIVE_FAIL()           //LOG_ERROR("W5500: client_receive: Failed\n")
+#define W5500_LOG_SOCKET_FAIL()            //LOG_ERROR("W5500: client_reconnect: Socket failed\n")
+#define W5500_LOG_CONNECT_ATTEMP_FAIL()    //LOG_ERROR("W5500: client_reconnect: Connect attemp failed\n")
+#define W5500_LOG_CONNECTED()              //LOG_TRACE("W5500: client_reconnect: Connected!\n")
+#define W5500_LOG_RTOS_INITIAL()           //LOG_TRACE("W5500: RTOS: Task initializing...\n")  
+#define W5500_LOG_RTOS_INITIAL_FAIL();     //LOG_TRACE("W5500: RTOS: Failed to create the task\n")
+#define W5500_RTOS_TASK_START()            //LOG_TRACE("W5500: RTOS: Task started\n")
+#define W5500_RTOS_TASK_STOP()             //LOG_ERROR("W5500: RTOS: Task stopped\n")
+#define W5500_RTOS_TRANSMIT_FAIL()         //LOG_ERROR("W5500: RTOS: Transmittion failed\n")
+#define W5500_RTOS_SOCKET_DISCONNECTED()   //LOG_ERROR("W5500: RTOS: Socket disconnected (IRQ)\n")
+#define W5500_RTOS_PACKET_RECEIVED()       //LOG_TRACE("W5500: RTOS: Packet Received\n")
+#define W5500_RTOS_TRY_FOR_CONNECTION()    //LOG_TRACE("W5500: RTOS: Try for connection...\n")
+#define W5500_RTOS_RX_FIFO_FULL()          //LOG_ERROR("W5550: RTOS: Rx FIFO is full\n")
+
+#endif //_W5500_LOG_H_

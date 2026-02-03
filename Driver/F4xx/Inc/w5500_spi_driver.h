@@ -13,15 +13,18 @@
 
 
 
-bool    w5500_spi_init (void);
-void    w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len);
-void    w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len);
-uint8_t w5500_spi_Receive1Byte (void);
-void    w5500_spi_Transmit1Byte (uint8_t data);
-void    w5500_cs_high (void);
-void    w5500_cs_low (void);
+void vW5500RstLow (void);
+void vW5500RstHigh (void);
+void vW5500CsLow (void);
+void vW5500CsHigh (void);
+void vW5500SpiTransmit1Byte (uint8_t ucData);
+uint8_t ucW5500SpiReceive1Byte (void);
+void vW5500SpiTransmitBurstDMA (uint8_t* pucBuf, uint16_t usLen);
+void vW5500SpiReceiveBurstDMA (uint8_t* pucBuf, uint16_t usLen);
+bool bW5500HardWareInit (void);
 
 
+extern bool bW5500IrqFlag;
 
 #ifdef __cplusplus
   }

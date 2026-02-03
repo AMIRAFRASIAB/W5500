@@ -575,133 +575,33 @@ int8_t disconnect(uint8_t sn)
    return SOCK_OK;
 }
 
-
-#if 1
-int32_t send(uint8_t sn, uint8_t * buf, uint16_t len)
-{
-   uint8_t tmp=0;
-   uint16_t freesize=0;
-   /* 
-    * The below codes can be omitted for optmization of speed
-    */
-   //CHECK_SOCKNUM();
-   //CHECK_TCPMODE(Sn_MR_TCP4);
-   /************/
-#ifndef IPV6_AVAILABLE
-   CHECK_SOCKNUM();
-   CHECK_SOCKMODE(Sn_MR_TCP);
-   CHECK_SOCKDATA();
-   tmp = getSn_SR(sn);
-   if(tmp != SOCK_ESTABLISHED && tmp != SOCK_CLOSE_WAIT) return SOCKERR_SOCKSTATUS;
-   if( sock_is_sending & (1<<sn) )
-   {
-      tmp = getSn_IR(sn);
-      if(tmp & Sn_IR_SENDOK)
-      {
-         setSn_IR(sn, Sn_IR_SENDOK);
-         //M20150401 : Typing Error
-         //#if _WZICHIP_ == 5200
-         #if _WIZCHIP_ == 5200
-            if(getSn_TX_RD(sn) != sock_next_rd[sn])
-            {
-               setSn_CR(sn,Sn_CR_SEND);
-               while(getSn_CR(sn));
-               return SOCK_BUSY;
-            }
-         #endif
-         sock_is_sending &= ~(1<<sn);         
-      }
-      else if(tmp & Sn_IR_TIMEOUT)
-      {
-         close(sn);
-         return SOCKERR_TIMEOUT;
-      }
-      else return SOCK_BUSY;
-   }
-#endif 
-   freesize = getSn_TxMAX(sn);
-   if (len > freesize) len = freesize; // check size not to exceed MAX size.
-   while(1)
-   {
-      freesize = (uint16_t)getSn_TX_FSR(sn);
-      tmp = getSn_SR(sn);
-      if ((tmp != SOCK_ESTABLISHED) && (tmp != SOCK_CLOSE_WAIT))
-      {
-         if(tmp == SOCK_CLOSED) close(sn);
-         return SOCKERR_SOCKSTATUS;
-      }
-      if( (sock_io_mode & (1<<sn)) && (len > freesize) ) return SOCK_BUSY; //TODO::need verify:LINAN 20250421
-     // if( sock_io_mode & (1<<sn) ) return SOCK_BUSY;  //TODO::need verify:LINAN 20250421
-      if(len <= freesize) break;
-   }
-   wiz_send_data(sn, buf, len);
-#if _WIZCHIP_ == 5200
-   sock_next_rd[sn] = getSn_TX_RD(sn) + len;
-#endif
-
-#if _WIZCHIP_ == 5300
-   setSn_TX_WRSR(sn,len);
-#endif
-   if(sock_is_sending & (1<<sn))
-   {
-      while ( !(getSn_IR(sn) & Sn_IR_SENDOK) )
-      {    
-         tmp = getSn_SR(sn);
-         if ((tmp != SOCK_ESTABLISHED) && (tmp != SOCK_CLOSE_WAIT) )
-         {
-            if( (tmp == SOCK_CLOSED) || (getSn_IR(sn) & Sn_IR_TIMEOUT) ) close(sn);
-            return SOCKERR_SOCKSTATUS;
-         }
-         if(sock_io_mode & (1<<sn)) return SOCK_BUSY;
-      } 
-      setSn_IR(sn, Sn_IR_SENDOK);
-   }
-   setSn_CR(sn,Sn_CR_SEND);
- 
-   // wait to process the command...
-   uint32_t startTick = W5500_GetTick();
-   while(getSn_CR(sn)) {
-     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
-       return -1;
-     }
-     #if W5500_USE_FreeRTOS == YES
-     taskYIELD();
-     #endif
-   }   
-   sock_is_sending |= (1<<sn);
- 
-   return len;
+int32_t send (uint8_t sn, uint8_t * buf, uint16_t len) {
+  uint8_t tmp = 0;
+  uint16_t freesize = 0;
+//  tmp = getSn_SR(sn);
+//  if (tmp != SOCK_ESTABLISHED) return SOCKERR_SOCKSTATUS;
+  uint32_t startTick = W5500_GetTick();
+  while (1) {
+    freesize = (uint16_t)getSn_TX_FSR(sn);
+    if (len <= freesize) break;
+    if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) return SOCK_BUSY;
+    #if W5500_USE_FreeRTOS == YES
+    taskYIELD();
+    #endif
+  }
+  wiz_send_data(sn, buf, len);
+  setSn_CR(sn,Sn_CR_SEND);
+  while (getSn_CR(sn)) {
+    if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
+      return -1;
+    }
+    #if W5500_USE_FreeRTOS == YES
+    taskYIELD();
+    #endif
+  }   
+  return len;
 }
-#else //for speed optimization, by lihan
-int32_t send(uint8_t sn, uint8_t * buf, uint16_t len)
-{
-   uint8_t tmp=0;
-   uint16_t freesize=0;
-   
-   // tx_bufferSize / 4 
 
-   //if (len > 4096) len = 4096; // check size not to exceed MAX size.//
-   //if (len > 8192) len = 8192; // check size not to exceed MAX siz
-   //if (len > 16384) len = 16384; // check size not to exceed MAX size.
-   //if (len > 32768) len = 32768; // check size not to exceed MAX size.
-   #define __FREESIZE__(i)  1024 * i
-   #define __FREESIZE__Value 8
-   if (len > __FREESIZE__(__FREESIZE__Value)) len = __FREESIZE__(__FREESIZE__Value); // check size not to exceed MAX size.//tse
-
-   while(1)
-   {
-      freesize = (uint16_t)getSn_TX_FSR(sn);
-      if(len <= freesize) break;
-   }
-   wiz_send_data(sn, buf, len);
-   setSn_CR(sn,Sn_CR_SEND);
- 
-   while(getSn_CR(sn));   // wait to process the command...
-   sock_is_sending |= (1<<sn);
- 
-   return len;
-}
-#endif 
 int32_t recv(uint8_t sn, uint8_t * buf, uint16_t len)//lihan
 {
    uint8_t  tmp = 0;
