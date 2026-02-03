@@ -62,6 +62,15 @@ static void prvvServiceW5500 (void* const pvParameters) {
            if (send(1, xTxObj.pucAddr, xTxObj.ulLen) != xTxObj.ulLen) {
              W5500_RTOS_TRANSMIT_FAIL(); //LOG
            }
+           else {
+             // Check PHY
+             uint8_t tmp;
+             ctlwizchip(CW_GET_PHYLINK, (void*)&tmp); 
+             if (tmp == PHY_LINK_OFF) {
+               W5500_LOG_CABLE_DISCONNECT(); //LOG
+               xState = eW5500StateDisconnect;
+             }
+           }
         }
         if (bW5500IrqFlag) {
           bW5500IrqFlag = false;
