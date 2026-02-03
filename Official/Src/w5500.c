@@ -26,7 +26,15 @@ uint8_t WIZCHIP_READ (uint32_t AddrSel) {
 	*puc++ = (AddrSel & 0x00FF0000) >> 16;
 	*puc++ = (AddrSel & 0x0000FF00) >> 8;
 	*puc = AddrSel & 0x000000FF;
+  #if W5500_SPI_USE_DMA == YES
   vW5500SpiTransmitBurstDMA(spi_data, 3);
+  #else 
+  uint8_t ucLen = sizeof(spi_data);
+  puc = spi_data;
+  while (ucLen-- > 0) {
+    vW5500SpiTransmit1Byte(*puc++);
+  }
+  #endif
   ret  = ucW5500SpiReceive1Byte();
   LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2);
 //   WIZCHIP_CRITICAL_EXIT();
@@ -43,7 +51,15 @@ void WIZCHIP_WRITE (uint32_t AddrSel, uint8_t wb) {
 	*puc++ = (AddrSel & 0x0000FF00) >> 8;
 	*puc++ = AddrSel & 0x000000FF;
 	*puc = wb;  
+  #if W5500_SPI_USE_DMA == YES
   vW5500SpiTransmitBurstDMA(spi_data, 4);
+  #else 
+  uint8_t ucLen = sizeof(spi_data);
+  puc = spi_data;
+  while (ucLen-- > 0) {
+    vW5500SpiTransmit1Byte(*puc++);
+  }
+  #endif
   LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2);
 //   WIZCHIP_CRITICAL_EXIT();
 }
@@ -58,8 +74,19 @@ void WIZCHIP_READ_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len) {
   *puc++ = (AddrSel & 0x00FF0000) >> 16;
   *puc++ = (AddrSel & 0x0000FF00) >> 8;
   *puc = AddrSel & 0x000000FF;
+  #if W5500_SPI_USE_DMA == YES
   vW5500SpiTransmitBurstDMA(spi_data, 3);
   vW5500SpiReceiveBurstDMA(pBuf, len);
+  #else 
+  uint8_t ucLen = sizeof(spi_data);
+  puc = spi_data;
+  while (ucLen-- > 0) {
+    vW5500SpiTransmit1Byte(*puc++);
+  }
+  while (len--> 0) {
+    *pBuf++ = ucW5500SpiReceive1Byte();
+  }
+  #endif
   LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2);
 //  WIZCHIP_CRITICAL_EXIT();
 }
@@ -74,8 +101,19 @@ void WIZCHIP_WRITE_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len) {
 	*puc++ = (AddrSel & 0x00FF0000) >> 16;
 	*puc++ = (AddrSel & 0x0000FF00) >> 8;
 	*puc = AddrSel & 0x000000FF;
+  #if W5500_SPI_USE_DMA == YES
   vW5500SpiTransmitBurstDMA(spi_data, 3);
   vW5500SpiTransmitBurstDMA(pBuf, len);
+  #else 
+  uint8_t ucLen = sizeof(spi_data);
+  puc = spi_data;
+  while (ucLen-- > 0) {
+    vW5500SpiTransmit1Byte(*puc++);
+  }
+  while (len-- > 0) {
+    vW5500SpiTransmit1Byte(*pBuf++);
+  }
+  #endif
   LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2); 
 //   WIZCHIP_CRITICAL_EXIT();
 }

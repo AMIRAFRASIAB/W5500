@@ -80,7 +80,7 @@
 #define W5500_TASK_STACK_SIZE_BYTES        2048
 #define W5500_TASK_PRIORITY                2
 #define W5500_TASK_RECONNECTION_DELAY      200
-#define W5500_INACTIVITY_TIMER_PERIOD      4000 // (0 = Disable This feature) 
+#define W5500_INACTIVITY_TIMER_PERIOD      0 // (0 = Disable This feature) 
 
 #else 
 #define W5500_GetTick                      HAL_GetTick
