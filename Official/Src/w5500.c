@@ -3,6 +3,7 @@
 #include "w5500_config.h"
 #include "stm32f4xx_ll_gpio.h"
 #include "w5500_spi_driver.h"
+
 #if W5500_USE_FreeRTOS == YES
 #include "FreeRTOS.h"
 #include "task.h"
@@ -13,6 +14,14 @@
 #define _W5500_SPI_FDM_OP_LEN2_     0x02
 #define _W5500_SPI_FDM_OP_LEN4_     0x03
 
+#define GPIOx  CONCAT(GPIO, W5500_CS_GPIO)
+#define PINx   CONCAT(LL_GPIO_PIN_, W5500_CS_PIN)
+
+#define CS_LOW()   LL_GPIO_ResetOutputPin(GPIOx, PINx)
+#define CS_HIGH()  LL_GPIO_SetOutputPin(GPIOx, PINx)
+
+
+
 #if   (_WIZCHIP_ == 5500)
 ////////////////////////////////////////////////////
 
@@ -21,7 +30,7 @@ uint8_t WIZCHIP_READ (uint32_t AddrSel) {
   uint8_t spi_data[3];
   uint8_t* restrict puc = spi_data;
 //   WIZCHIP_CRITICAL_ENTER();
-  LL_GPIO_ResetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_LOW();
   AddrSel |= (_W5500_SPI_READ_ | _W5500_SPI_VDM_OP_);
 	*puc++ = (AddrSel & 0x00FF0000) >> 16;
 	*puc++ = (AddrSel & 0x0000FF00) >> 8;
@@ -36,7 +45,7 @@ uint8_t WIZCHIP_READ (uint32_t AddrSel) {
   }
   #endif
   ret  = ucW5500SpiReceive1Byte();
-  LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_HIGH();
 //   WIZCHIP_CRITICAL_EXIT();
   return ret;
 }
@@ -45,7 +54,7 @@ void WIZCHIP_WRITE (uint32_t AddrSel, uint8_t wb) {
   uint8_t spi_data[4];
   uint8_t* restrict puc = spi_data; 
 //  WIZCHIP_CRITICAL_ENTER();
-  LL_GPIO_ResetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_LOW();
   AddrSel |= (_W5500_SPI_WRITE_ | _W5500_SPI_VDM_OP_);
 	*puc++ = (AddrSel & 0x00FF0000) >> 16;
 	*puc++ = (AddrSel & 0x0000FF00) >> 8;
@@ -60,7 +69,7 @@ void WIZCHIP_WRITE (uint32_t AddrSel, uint8_t wb) {
     vW5500SpiTransmit1Byte(*puc++);
   }
   #endif
-  LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_HIGH();
 //   WIZCHIP_CRITICAL_EXIT();
 }
         
@@ -69,7 +78,7 @@ void WIZCHIP_READ_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len) {
   uint8_t* restrict puc = spi_data;
   uint16_t i;
 //   WIZCHIP_CRITICAL_ENTER();
-  LL_GPIO_ResetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_LOW();
   AddrSel |= (_W5500_SPI_READ_ | _W5500_SPI_VDM_OP_);
   *puc++ = (AddrSel & 0x00FF0000) >> 16;
   *puc++ = (AddrSel & 0x0000FF00) >> 8;
@@ -87,7 +96,7 @@ void WIZCHIP_READ_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len) {
     *pBuf++ = ucW5500SpiReceive1Byte();
   }
   #endif
-  LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_HIGH();
 //  WIZCHIP_CRITICAL_EXIT();
 }
 
@@ -96,7 +105,7 @@ void WIZCHIP_WRITE_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len) {
   uint8_t* restrict puc = spi_data;
   uint16_t i;
 //   WIZCHIP_CRITICAL_ENTER();
-  LL_GPIO_ResetOutputPin(GPIOD, LL_GPIO_PIN_2);
+  CS_LOW();
   AddrSel |= (_W5500_SPI_WRITE_ | _W5500_SPI_VDM_OP_);
 	*puc++ = (AddrSel & 0x00FF0000) >> 16;
 	*puc++ = (AddrSel & 0x0000FF00) >> 8;
@@ -114,7 +123,7 @@ void WIZCHIP_WRITE_BUF (uint32_t AddrSel, uint8_t* pBuf, uint16_t len) {
     vW5500SpiTransmit1Byte(*pBuf++);
   }
   #endif
-  LL_GPIO_SetOutputPin(GPIOD, LL_GPIO_PIN_2); 
+  CS_HIGH();
 //   WIZCHIP_CRITICAL_EXIT();
 }
 
