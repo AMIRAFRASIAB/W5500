@@ -42,6 +42,13 @@
 #include "task.h"
 #endif
 
+// Phy Configs
+wiz_PhyConf xPhyConf = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_MODE_AUTONEGO,
+  .speed  = PHY_SPEED_100
+};
+
 #if (W5500_USER_NETWORK_CONFIG==NO)
 const W5500_Cnf_t STATIC_INFO = {
   .info = {
@@ -158,6 +165,7 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     W5500_Delay(1);
     close(i);
   }
+  wizphy_setphyconf(&xPhyConf);
 //  setRTR((W5500_RETRY_CONN_DELAY * 10)); // Retry timeout in 100us units -> = 25 ms
 //  setRCR(W5500_RETRY_COUNTS);          // Retry count
   if (socket(1, Sn_MR_TCP, 0, 0) != 1) {
