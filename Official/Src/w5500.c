@@ -54,8 +54,10 @@
 //#include <stdio.h>
 #include "w5500.h"
 #include "w5500_config.h"
+#if W5500_USE_FreeRTOS == YES
 #include "FreeRTOS.h"
 #include "task.h"
+#endif
 
 #define _W5500_SPI_VDM_OP_          0x00
 #define _W5500_SPI_FDM_OP_LEN1_     0x01
@@ -201,9 +203,11 @@ uint16_t getSn_TX_FSR (uint8_t sn) {
     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
       break;
     }
+    #if W5500_USE_FreeRTOS==YES
     else {
       vTaskDelay(1);
     }
+    #endif
   } while (val != val1);
   return val;
 }
@@ -222,9 +226,11 @@ uint16_t getSn_RX_RSR (uint8_t sn) {
     if (W5500_GetTick() - startTick > W5500_APIs_TIMEOUT) {
       break;
     }
+    #if W5500_USE_FreeRTOS==YES
     else {
       vTaskDelay(1);
     }
+    #endif
   } while (val != val1);
   return val;
 }

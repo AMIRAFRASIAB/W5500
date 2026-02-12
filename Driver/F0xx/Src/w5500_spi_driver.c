@@ -1,9 +1,9 @@
 
-#include "stm32f4xx.h"
-#include "stm32f4xx_ll_spi.h"
-#include "stm32f4xx_ll_dma.h"
-#include "stm32f4xx_ll_gpio.h"
-#include "stm32f4xx_hal_rcc.h"
+#include "stm32f0xx.h"
+#include "stm32f0xx_ll_spi.h"
+#include "stm32f0xx_ll_dma.h"
+#include "stm32f0xx_ll_gpio.h"
+#include "stm32f0xx_hal_rcc.h"
 #include "w5500_config.h"
 #include "w5500_spi_driver.h"
 #include "swo.h"
@@ -29,20 +29,12 @@
 static uint8_t flag = 0;
 static uint8_t rxByte;
 /* Private Macros */
-#define CS                           BB_GPIO_ODR(W5500_CS_GPIO, W5500_CS_PIN)
-#define RST                          BB_GPIO_ODR(W5500_RST_GPIO, W5500_RST_PIN)
 #define SPI                          CONCAT(SPI, W5500_SPI)
 #define DMATx                        CONCAT(DMA, W5500_DMA_TX_NUM)
 #define DMARx                        CONCAT(DMA, W5500_DMA_RX_NUM)
                                      
-#define LL_DMA_STREAM_Tx             CONCAT(LL_DMA_STREAM_, W5500_DMA_TX_STREAM)
-#define LL_DMA_STREAM_Rx             CONCAT(LL_DMA_STREAM_, W5500_DMA_RX_STREAM)
 #define LL_DMA_CHANNEL_Tx            CONCAT(LL_DMA_CHANNEL_, W5500_DMA_TX_CHANNEL)
 #define LL_DMA_CHANNEL_Rx            CONCAT(LL_DMA_CHANNEL_, W5500_DMA_RX_CHANNEL)
-
-#define W5500_DMA_RX_IRQHandler      CONCAT(DMA, CONCAT(W5500_DMA_RX_NUM, _Stream, W5500_DMA_RX_STREAM, _IRQHandler))
-#define W5500_DMA_RX_IRQn            CONCAT(DMA, CONCAT(W5500_DMA_RX_NUM, _Stream, W5500_DMA_RX_STREAM, _IRQn))
-
 
 #define __HAL_RCC_CS_CLK_ENABLE()    CONCAT(__HAL_RCC_GPIO, W5500_CS_GPIO, _CLK_ENABLE)()
 #define __HAL_RCC_MOSI_CLK_ENABLE()  CONCAT(__HAL_RCC_GPIO, W5500_MOSI_GPIO, _CLK_ENABLE)()
@@ -71,6 +63,7 @@ static uint8_t rxByte;
 
 #define LL_DMA_ClearFlag(f, n)       CONCAT(LL_DMA_ClearFlag_, f, n)
 
+
 /**************************************************************/
 /* Private APIs */
 /**************************************************************/
@@ -79,7 +72,7 @@ static void __w5500_gpio_init (void) {
   // CS
   __HAL_RCC_CS_CLK_ENABLE();
   LL_GPIO_SetPinMode(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_MODE_OUTPUT);
-  LL_GPIO_SetPinSpeed(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_SPEED_FREQ_MEDIUM);
+  LL_GPIO_SetPinSpeed(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_SPEED_FREQ_LOW);
   LL_GPIO_LockPin(GPIO_CS, LL_GPIO_PIN_CS);
   
   // RST
@@ -90,10 +83,10 @@ static void __w5500_gpio_init (void) {
   // MOSI
   __HAL_RCC_MOSI_CLK_ENABLE();
   LL_GPIO_SetPinMode(GPIO_MOSI, LL_GPIO_PIN_MOSI, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetPinSpeed(GPIO_MOSI, LL_GPIO_PIN_MOSI, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+  LL_GPIO_SetPinSpeed(GPIO_MOSI, LL_GPIO_PIN_MOSI, LL_GPIO_SPEED_FREQ_HIGH);
   #if W5500_MOSI_PIN <= 7
   LL_GPIO_SetAFPin_0_7(GPIO_MOSI, LL_GPIO_PIN_MOSI, LL_GPIO_AF_MOSI);
-  #else 
+  #else
   LL_GPIO_SetAFPin_8_15(GPIO_MOSI, LL_GPIO_PIN_MOSI, LL_GPIO_AF_MOSI);
   #endif
   LL_GPIO_LockPin(GPIO_MOSI, LL_GPIO_PIN_MOSI);
@@ -101,7 +94,7 @@ static void __w5500_gpio_init (void) {
   // MISO
   __HAL_RCC_MISO_CLK_ENABLE();
   LL_GPIO_SetPinMode(GPIO_MISO, LL_GPIO_PIN_MISO, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetPinSpeed(GPIO_MISO, LL_GPIO_PIN_MISO, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+  LL_GPIO_SetPinSpeed(GPIO_MISO, LL_GPIO_PIN_MISO, LL_GPIO_SPEED_FREQ_HIGH);
   #if W5500_MISO_PIN <= 7
   LL_GPIO_SetAFPin_0_7(GPIO_MISO, LL_GPIO_PIN_MISO, LL_GPIO_AF_MISO);
   #else 
@@ -112,7 +105,7 @@ static void __w5500_gpio_init (void) {
   // SCLK
   __HAL_RCC_SCLK_CLK_ENABLE();
   LL_GPIO_SetPinMode(GPIO_SCLK, LL_GPIO_PIN_SCLK, LL_GPIO_MODE_ALTERNATE);
-  LL_GPIO_SetPinSpeed(GPIO_SCLK, LL_GPIO_PIN_SCLK, LL_GPIO_SPEED_FREQ_VERY_HIGH);
+  LL_GPIO_SetPinSpeed(GPIO_SCLK, LL_GPIO_PIN_SCLK, LL_GPIO_SPEED_FREQ_HIGH);
   #if W5500_SCLK_PIN <= 7
   LL_GPIO_SetAFPin_0_7(GPIO_SCLK, LL_GPIO_PIN_SCLK, LL_GPIO_AF_SCLK);
   #else 
@@ -142,6 +135,7 @@ static bool __w5500_spi_init (void) {
     LOG_ERROR("W5500 SPI :: Failed to initialize the spi");
     return false;
   }
+  LL_SPI_SetRxFIFOThreshold(SPI, LL_SPI_RX_FIFO_TH_QUARTER);
   #if W5500_USE_FreeRTOS == YES
   hSemaphore = xSemaphoreCreateBinary();
   if (hSemaphore == NULL) {
@@ -163,46 +157,43 @@ static void __w5500_dma_init (void) {
   /* Tx */
   __HAL_RCC_DMATx_CLK_ENABLE();
   __DSB();
-  LL_DMA_DisableStream(DMATx, LL_DMA_STREAM_Tx);
+  LL_DMA_DisableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   __DSB();
-  LL_DMA_ClearFlag(DME, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_ClearFlag(FE, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_ClearFlag(HT, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_ClearFlag(TE, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_SetChannelSelection(DMATx, LL_DMA_STREAM_Tx, LL_DMA_CHANNEL_Tx);
-  LL_DMA_SetStreamPriorityLevel(DMATx, LL_DMA_STREAM_Tx, W5500_DMA_TX_STREAM_PRIORITY);
-  LL_DMA_SetMemorySize(DMATx, LL_DMA_STREAM_Tx, LL_DMA_MDATAALIGN_BYTE);
-  LL_DMA_SetPeriphSize(DMATx, LL_DMA_STREAM_Tx, LL_DMA_PDATAALIGN_BYTE);
-  LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_STREAM_Tx, LL_DMA_MEMORY_INCREMENT);
-  LL_DMA_SetPeriphIncMode(DMATx, LL_DMA_STREAM_Tx, LL_DMA_PERIPH_NOINCREMENT);
-  LL_DMA_SetDataTransferDirection(DMATx, LL_DMA_STREAM_Tx, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
-  LL_DMA_SetPeriphAddress(DMATx, LL_DMA_STREAM_Tx, LL_SPI_DMA_GetRegAddr(SPI));
-/*
-  This 3 lines are not necessary any more
-  LL_DMA_EnableIT_TC(DMATx, LL_DMA_STREAM_Tx);                    
-  NVIC_SetPriority(W5500_DMA_TX_IRQn, W5500_DMA_TX_IRQ_PRIORITY); 
-  NVIC_EnableIRQ(W5500_DMA_TX_IRQn);                              
-*/  
+  LL_DMA_ClearFlag(GI, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_ClearFlag(HT, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_ClearFlag(TC, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_ClearFlag(TE, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_SetChannelPriorityLevel(DMATx, LL_DMA_CHANNEL_Tx, W5500_DMA_TX_CHANNEL_PRIORITY);
+  LL_DMA_SetMemorySize(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_MDATAALIGN_BYTE);
+  LL_DMA_SetPeriphSize(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_PDATAALIGN_BYTE);
+  LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_MEMORY_INCREMENT);
+  LL_DMA_SetPeriphIncMode(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_PERIPH_NOINCREMENT);
+  LL_DMA_SetDataTransferDirection(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_DIRECTION_MEMORY_TO_PERIPH);
+  LL_DMA_SetPeriphAddress(DMATx, LL_DMA_CHANNEL_Tx, LL_SPI_DMA_GetRegAddr(SPI));
+/**
+  * @attention DMA Tx line TC Irq is not enable
+  * LL_DMA_EnableIT_TC(DMATx, LL_DMA_CHANNEL_Tx);                    
+  * NVIC_SetPriority(W5500_DMA_TX_IRQn, W5500_DMA_TX_IRQ_PRIORITY); 
+  * NVIC_EnableIRQ(W5500_DMA_TX_IRQn);                              
+  */
+  
   /* Rx */
   __HAL_RCC_DMARx_CLK_ENABLE();
   __DSB();
-  LL_DMA_DisableStream(DMARx, LL_DMA_STREAM_Rx);
+  LL_DMA_DisableChannel(DMARx, LL_DMA_CHANNEL_Rx);
   __DSB();
-  LL_DMA_ClearFlag(DME, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_ClearFlag(FE, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_ClearFlag(HT, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_ClearFlag(TE, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_SetChannelSelection(DMARx, LL_DMA_STREAM_Rx, LL_DMA_CHANNEL_Rx);
-  LL_DMA_SetStreamPriorityLevel(DMARx, LL_DMA_STREAM_Rx, W5500_DMA_RX_STREAM_PRIORITY);
-  LL_DMA_SetMemorySize(DMARx, LL_DMA_STREAM_Rx, LL_DMA_MDATAALIGN_BYTE);
-  LL_DMA_SetPeriphSize(DMARx, LL_DMA_STREAM_Rx, LL_DMA_PDATAALIGN_BYTE);
-  LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_STREAM_Rx, LL_DMA_MEMORY_INCREMENT);
-  LL_DMA_SetPeriphIncMode(DMARx, LL_DMA_STREAM_Rx, LL_DMA_PERIPH_NOINCREMENT);
-  LL_DMA_SetDataTransferDirection(DMARx, LL_DMA_STREAM_Rx, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
-  LL_DMA_SetPeriphAddress(DMARx, LL_DMA_STREAM_Rx, LL_SPI_DMA_GetRegAddr(SPI));
-  LL_DMA_EnableIT_TC(DMARx, LL_DMA_STREAM_Rx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(HT, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(TC, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(TE, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_SetChannelPriorityLevel(DMARx, LL_DMA_CHANNEL_Rx, W5500_DMA_RX_CHANNEL_PRIORITY);
+  LL_DMA_SetMemorySize(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_MDATAALIGN_BYTE);
+  LL_DMA_SetPeriphSize(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_PDATAALIGN_BYTE);
+  LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_MEMORY_INCREMENT);
+  LL_DMA_SetPeriphIncMode(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_PERIPH_NOINCREMENT);
+  LL_DMA_SetDataTransferDirection(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+  LL_DMA_SetPeriphAddress(DMARx, LL_DMA_CHANNEL_Rx, LL_SPI_DMA_GetRegAddr(SPI));
+  LL_DMA_EnableIT_TC(DMARx, LL_DMA_CHANNEL_Rx);
   NVIC_SetPriority(W5500_DMA_RX_IRQn, W5500_DMA_RX_IRQ_PRIORITY);
   NVIC_EnableIRQ(W5500_DMA_RX_IRQn);
   #endif
@@ -211,7 +202,7 @@ static void __w5500_dma_init (void) {
 static uint8_t __w5500_spi_TransmitReceive1Byte (uint8_t data) {
   uint32_t timeout = W5500_SPI_TIMEOUT;
   uint32_t start = W5500_GetTick();
-  while (!LL_SPI_IsActiveFlag_TXE(SPI)) {
+  while (!LL_SPI_IsActiveFlag_TXE(SPI) || LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - start > timeout) {
       return 0xFF;
     }
@@ -219,36 +210,47 @@ static uint8_t __w5500_spi_TransmitReceive1Byte (uint8_t data) {
     taskYIELD();
     #endif
   }
+  LL_SPI_ClearFlag_OVR(SPI);
   LL_SPI_TransmitData8(SPI, data);
   while (!LL_SPI_IsActiveFlag_RXNE(SPI)) {
     if (W5500_GetTick() - start > timeout) {
-      return 0xFF;
+      break;
     }
     #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
   uint8_t rxByte = LL_SPI_ReceiveData8(SPI);
-  (void)LL_SPI_ReadReg(SPI, SR);
+  rxByte = LL_SPI_ReceiveData8(SPI);
   return rxByte;
 }
 //-----------------------------------------------------------------------
 // Public APIs 
 //-----------------------------------------------------------------------
 void w5500_cs_low (void) {
-  CS = 0;
+  LL_GPIO_ResetOutputPin(GPIO_CS, LL_GPIO_PIN_CS);
 }
 //-----------------------------------------------------------------------
 void w5500_cs_high (void) {
-  CS = 1;
+  LL_GPIO_SetOutputPin(GPIO_CS, LL_GPIO_PIN_CS);
 }
 //-----------------------------------------------------------------------
 void w5500_spi_Transmit1Byte (uint8_t data) {
+  #if W5500_SPI_USE_DMA == YES
+  w5500_spi_TransmitBurstDMA(&data, sizeof(data));
+  #else 
   __w5500_spi_TransmitReceive1Byte(data);
+  #endif 
 }
 //----------------------------------------------------------------------- 
 uint8_t w5500_spi_Receive1Byte (void) {
+  #if W5500_SPI_USE_DMA == YES
+  uint8_t ret;
+  w5500_spi_ReceiveBurstDMA(&ret, sizeof(ret));
+  return ret;
+  #else 
   return __w5500_spi_TransmitReceive1Byte(0x00);
+  #endif
 }
 //----------------------------------------------------------------------- 
 void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
@@ -257,6 +259,7 @@ void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
     __w5500_spi_TransmitReceive1Byte(*buf++);
   }
   #else 
+  static uint8_t dummy;
   uint32_t start = W5500_GetTick();
   while (LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
@@ -268,31 +271,29 @@ void w5500_spi_TransmitBurstDMA (uint8_t* buf, uint16_t len) {
     #endif
   }
   LL_SPI_ClearFlag_OVR(SPI);
-  LL_DMA_DisableStream(DMATx, LL_DMA_STREAM_Tx);
-  LL_DMA_DisableStream(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_ClearFlag(FE, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_ClearFlag(FE, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_EnableIT_TC(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_STREAM_Tx, LL_DMA_MEMORY_INCREMENT);
-  LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_STREAM_Rx, LL_DMA_MEMORY_NOINCREMENT);
-  LL_DMA_SetMemoryAddress(DMATx, LL_DMA_STREAM_Tx, (uint32_t)buf);
-  LL_DMA_SetMemoryAddress(DMARx, LL_DMA_STREAM_Rx, (uint32_t)&rxByte);
-  LL_DMA_SetDataLength(DMATx, LL_DMA_STREAM_Tx, len);
-  LL_DMA_SetDataLength(DMARx, LL_DMA_STREAM_Rx, len);
+  LL_DMA_DisableChannel(DMATx, LL_DMA_CHANNEL_Tx);
+  LL_DMA_DisableChannel(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_EnableIT_TC(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_MEMORY_INCREMENT);
+  LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_MEMORY_NOINCREMENT);
+  LL_DMA_SetMemoryAddress(DMATx, LL_DMA_CHANNEL_Tx, (uint32_t)buf);
+  LL_DMA_SetMemoryAddress(DMARx, LL_DMA_CHANNEL_Rx, (uint32_t)&dummy);
+  LL_DMA_SetDataLength(DMATx, LL_DMA_CHANNEL_Tx, len);
+  LL_DMA_SetDataLength(DMARx, LL_DMA_CHANNEL_Rx, len);
   LL_SPI_Enable(SPI);
   #if W5500_USE_FreeRTOS == YES
   xSemaphoreTake(hSemaphore, 0);
-  LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
+  LL_DMA_EnableChannel(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_EnableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   if (xSemaphoreTake(hSemaphore, W5500_SPI_TIMEOUT) != pdTRUE) {
     LOG_ERROR("W5500 :: spi tx :: Failed to take the semaphore");
   }
   #else 
   flag = 1;
-  LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
+  LL_DMA_EnableChannel(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_EnableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   while (flag) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
       break;
@@ -312,36 +313,37 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
   while (LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
       LOG_ERROR("W5500 :: spi rx :: busy flag timeout");
+      return;
     }
     #if W5500_USE_FreeRTOS == YES
     taskYIELD();
     #endif
   }
   LL_SPI_ClearFlag_OVR(SPI);
-  static const uint8_t dummy = 0x00;
-  LL_DMA_DisableStream(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_DisableStream(DMATx, LL_DMA_STREAM_Tx);
+  LL_DMA_DisableChannel(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_DisableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   __DSB();
-  LL_DMA_ClearFlag(TC, W5500_DMA_RX_STREAM)(DMARx);
-  LL_DMA_ClearFlag(TC, W5500_DMA_TX_STREAM)(DMATx);
-  LL_DMA_EnableIT_TC(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_STREAM_Tx, LL_DMA_MEMORY_NOINCREMENT);
-  LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_STREAM_Rx, LL_DMA_MEMORY_INCREMENT);
-  LL_DMA_SetMemoryAddress(DMATx, LL_DMA_STREAM_Tx, (uint32_t)(&dummy));
-  LL_DMA_SetMemoryAddress(DMARx, LL_DMA_STREAM_Rx, (uint32_t)buf);
-  LL_DMA_SetDataLength(DMATx, LL_DMA_STREAM_Tx, len);
-  LL_DMA_SetDataLength(DMARx, LL_DMA_STREAM_Rx, len);
+  LL_DMA_ClearFlag(TC, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(TC, W5500_DMA_TX_CHANNEL)(DMATx);
+  LL_DMA_EnableIT_TC(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_SetMemoryIncMode(DMATx, LL_DMA_CHANNEL_Tx, LL_DMA_MEMORY_NOINCREMENT);
+  LL_DMA_SetMemoryIncMode(DMARx, LL_DMA_CHANNEL_Rx, LL_DMA_MEMORY_INCREMENT);
+  static const uint8_t TX_VALUE = 0x00;
+  LL_DMA_SetMemoryAddress(DMATx, LL_DMA_CHANNEL_Tx, (uint32_t)(&TX_VALUE));
+  LL_DMA_SetMemoryAddress(DMARx, LL_DMA_CHANNEL_Rx, (uint32_t)buf);
+  LL_DMA_SetDataLength(DMATx, LL_DMA_CHANNEL_Tx, len);
+  LL_DMA_SetDataLength(DMARx, LL_DMA_CHANNEL_Rx, len);
   #if W5500_USE_FreeRTOS == YES
   xSemaphoreTake(hSemaphore, 0);
-  LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
+  LL_DMA_EnableChannel(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_EnableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   if (xSemaphoreTake(hSemaphore, W5500_SPI_TIMEOUT) != pdTRUE) {
     LOG_ERROR("W5500 :: spi rx :: Failed to take the semaphore");
   }
   #else 
   flag = 1;
-  LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
-  LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
+  LL_DMA_EnableChannel(DMARx, LL_DMA_CHANNEL_Rx);
+  LL_DMA_EnableChannel(DMATx, LL_DMA_CHANNEL_Tx);
   while (flag) {
     if (W5500_GetTick() - start > W5500_SPI_TIMEOUT) {
       break;
@@ -353,7 +355,8 @@ void w5500_spi_ReceiveBurstDMA (uint8_t* buf, uint16_t len) {
 //-----------------------------------------------------------------------
 #if W5500_SPI_USE_DMA == YES
 void W5500_DMA_RX_IRQHandler (void) {
-  LL_DMA_ClearFlag(TC, W5500_DMA_RX_STREAM)(DMARx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_RX_CHANNEL)(DMARx);
+  LL_DMA_ClearFlag(GI, W5500_DMA_TX_CHANNEL)(DMATx);
   #if W5500_USE_FreeRTOS == YES
   xSemaphoreGiveFromISR(hSemaphore, NULL);
   #else 
@@ -365,11 +368,13 @@ void W5500_DMA_RX_IRQHandler (void) {
 bool w5500_spi_init (void) {
   bool status;
   __w5500_gpio_init();
-  CS = 1;
-  RST = 0;
+  LL_GPIO_SetOutputPin(GPIO_CS, LL_GPIO_PIN_CS);
+  LL_GPIO_ResetOutputPin(GPIO_RST, LL_GPIO_PIN_RST);
   W5500_Delay(10);
-  RST = 1;
+  LL_GPIO_SetOutputPin(GPIO_RST, LL_GPIO_PIN_RST);
+  W5500_Delay(50);
   status = __w5500_spi_init();
   __w5500_dma_init();
   return status;
 }
+//-----------------------------------------------------------------------
