@@ -45,8 +45,9 @@
 // Phy Configs
 wiz_PhyConf xPhyConf = {
   .by     = PHY_CONFBY_SW,
-  .duplex = PHY_MODE_AUTONEGO,
-  .speed  = PHY_SPEED_100
+  .speed  = PHY_SPEED_10,
+  .duplex = PHY_DUPLEX_FULL,
+  .mode   = PHY_MODE_MANUAL,
 };
 
 #if (W5500_USER_NETWORK_CONFIG==NO)
@@ -166,6 +167,9 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     close(i);
   }
   wizphy_setphyconf(&xPhyConf);
+  wizphy_reset();
+  vTaskDelay(pdMS_TO_TICKS(200));
+  
 //  setRTR((W5500_RETRY_CONN_DELAY * 10)); // Retry timeout in 100us units -> = 25 ms
 //  setRCR(W5500_RETRY_COUNTS);          // Retry count
   if (socket(1, Sn_MR_TCP, 0, 0) != 1) {
@@ -284,6 +288,13 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   if (status == SOCK_ESTABLISHED) {
     // Already connected
     return true;
+  }
+  wiz_PhyConf xConf;
+  wizphy_getphyconf(&xConf);
+  if (memcmp(&xConf, &xPhyConf, sizeof(wiz_PhyConf)) != 0) {
+    wizphy_setphyconf(&xPhyConf);
+    wizphy_reset();
+    return false;
   }
   // If socket is not closed, close it first
   if (status != SOCK_CLOSED) {

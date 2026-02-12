@@ -25,15 +25,15 @@
 #endif   
 
 #include "swo.h"
-
+#include "bsp.h"
+#include "serial_debugger.h"
+#include "task_manager.h"
 
 #define W5500_SPI                          3       
-#define W5500_SPI_TIMEOUT                  10      
-#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV8
+#define W5500_SPI_TIMEOUT                  5      
+#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV16
 #define W5500_TRACE_ENABLE                 YES
-#if (W5500_TRACE_ENABLE==YES)              
-#define W5500_DEBUG_LIB                    "debug.h"
-#endif
+#define W5500_DEBUG_LIB                    "serial_debugger.h"                                              
                                               
 #define W5500_CS_GPIO                      A
 #define W5500_CS_PIN                       15
@@ -72,11 +72,11 @@
 #if (W5500_USE_FreeRTOS==YES)
 #define W5500_GetTick                      xTaskGetTickCount
 #define W5500_Delay                        vTaskDelay
-#define W5500_TaskCreate                   xTaskCreate
+#define W5500_TaskCreate                   tm_xTaskCreate
 #define W5500_STREAM_BUF_RX_SIZE           128
 #define W5500_STREAM_BUF_TX_SIZE           128
-#define W5500_TASK_STACK_SIZE_BYTES        1024
-#define W5500_TASK_PRIORITY                1
+#define W5500_TASK_STACK_SIZE_BYTES        (W5500_STACK_SIZE * 4) 
+#define W5500_TASK_PRIORITY                W5500_TASK_PRIORITYY
 #define W5500_TASK_FREQUENCY_PERIOD        100
 #define W5500_CHECK_FREQUENCY_PERIOD       1000
 #else 
@@ -84,7 +84,8 @@
 #define W5500_Delay                        HAL_Delay
 #endif      
       
-#define W5500_USER_NETWORK_CONFIG          NO
+#define W5500_SOCKET_NUM_INCREMENT         NO      
+#define W5500_USER_NETWORK_CONFIG          YES
 #if (W5500_USER_NETWORK_CONFIG==NO)
 #define W5500_MAC_ADDRESS                  0x00, 0x08, 0xDC, 0xAB, 0xCD, 0xEF
 #define W5500_PORT                         8234
@@ -96,9 +97,9 @@
 #define W5500_DHCP                         NETINFO_STATIC /// NETINFO_STATIC or NETINFO_DHCP
 #endif  
 
-#define W5500_RETRY_CONN_DELAY             5
+#define W5500_RETRY_CONN_DELAY             10
 #define W5500_RETRY_COUNTS                 2
-#define W5500_APIs_TIMEOUT                 100
+#define W5500_APIs_TIMEOUT                 50
 
 #ifdef __cplusplus
   }

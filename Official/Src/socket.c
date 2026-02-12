@@ -62,7 +62,7 @@
 #endif
 //M20150401 : Typing Error
 //#define SOCK_ANY_PORT_NUM  0xC000;
-#define SOCK_ANY_PORT_NUM  0xC000
+#define SOCK_ANY_PORT_NUM  0b0010000110001001 
 
 static uint16_t sock_any_port = SOCK_ANY_PORT_NUM;
 static uint16_t sock_io_mode = 0;
@@ -321,9 +321,13 @@ int8_t socket(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag)
    setSn_MR2(sn, flag & 0x03);  
 #endif 
    if(!port)
-   {
-      port = sock_any_port++;
-      if(sock_any_port == 0xFFF0) sock_any_port = SOCK_ANY_PORT_NUM;
+   {  
+     #if W5500_SOCKET_NUM_INCREMENT == YES
+     port = sock_any_port++;
+     if(sock_any_port == 0xFFF0) sock_any_port = SOCK_ANY_PORT_NUM;
+     #else
+     port = sock_any_port;
+     #endif
    }
    setSn_PORTR(sn,port);
    setSn_CR(sn,Sn_CR_OPEN);
