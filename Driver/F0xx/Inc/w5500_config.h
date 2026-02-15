@@ -25,16 +25,14 @@
 #endif   
 
 #include "swo.h"
-
+#include "string.h"
 
 #define W5500_SPI                          1
-#define W5500_SPI_TIMEOUT                  10
+#define W5500_SPI_TIMEOUT                  1
 #define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV64
-#define W5500_TRACE_ENABLE                 YES
-#if (W5500_TRACE_ENABLE==YES)              
-#define W5500_DEBUG_LIB                    "debug.h"
-#endif
-                                              
+#define W5500_TRACE_ENABLE                 NO
+#define W5500_DEBUG_LIB                    "stdio.h"
+
 #define W5500_CS_GPIO                      B
 #define W5500_CS_PIN                       0
 
@@ -83,16 +81,18 @@
 #define W5500_GetTick                      sysTick_getTick
 #define W5500_Delay                        LL_mDelay
 #endif      
-      
+
+#define W5500_SOCKET_NUM_START             0b0001110110010111
+#define W5500_SOCKET_NUM_INCREMENT         NO
 #define W5500_USER_NETWORK_CONFIG          NO
 #if (W5500_USER_NETWORK_CONFIG==NO)
 #define W5500_MAC_ADDRESS                  0x00, 0x08, 0xDC, 0xAB, 0xCD, 0xEF
-#define W5500_PORT                         8237
-#define W5500_OWN_IP                       192, 168, 14, 7
-#define W5500_DESTINATION_IP               192, 168, 14, 2
+#define W5500_PORT                         8238
+#define W5500_OWN_IP                       192, 168, 14,  8
+#define W5500_DESTINATION_IP               192, 168, 14,  2
 #define W5500_SUBNET                       255, 255, 255, 0
-#define W5500_GATEWAY                      192, 168, 14, 1
-#define W5500_DNS                          8, 8, 8, 8
+#define W5500_GATEWAY                      192, 168, 14,  1
+#define W5500_DNS                          8,   8,   8,   8
 #define W5500_DHCP                         NETINFO_STATIC /// NETINFO_STATIC or NETINFO_DHCP
 #endif  
 

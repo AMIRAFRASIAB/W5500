@@ -83,7 +83,8 @@
 #define W5500_GetTick                      HAL_GetTick
 #define W5500_Delay                        HAL_Delay
 #endif      
-      
+
+#define W5500_SOCKET_NUM_START             0b0001110110010111      
 #define W5500_SOCKET_NUM_INCREMENT         NO      
 #define W5500_USER_NETWORK_CONFIG          YES
 #if (W5500_USER_NETWORK_CONFIG==NO)

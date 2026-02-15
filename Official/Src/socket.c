@@ -62,7 +62,7 @@
 #endif
 //M20150401 : Typing Error
 //#define SOCK_ANY_PORT_NUM  0xC000;
-#define SOCK_ANY_PORT_NUM  0b0010000110001001 
+#define SOCK_ANY_PORT_NUM  W5500_SOCKET_NUM_START 
 
 static uint16_t sock_any_port = SOCK_ANY_PORT_NUM;
 static uint16_t sock_io_mode = 0;

@@ -90,7 +90,6 @@ bool w5500_cable_getStatus (uint8_t tries, uint16_t delay) {
   return false;
 }
 //--------------------------------------------------------------------------
-__USED uint8_t data;
 bool w5500_check_presence (void) {
   uint8_t version = getVERSIONR(); 
    if (version != 0x04) {
@@ -168,7 +167,7 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
   }
   wizphy_setphyconf(&xPhyConf);
   wizphy_reset();
-  vTaskDelay(pdMS_TO_TICKS(200));
+  W5500_Delay(200);
   
 //  setRTR((W5500_RETRY_CONN_DELAY * 10)); // Retry timeout in 100us units -> = 25 ms
 //  setRCR(W5500_RETRY_COUNTS);          // Retry count
