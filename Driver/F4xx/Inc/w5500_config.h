@@ -79,12 +79,13 @@
 #define W5500_TASK_PRIORITY                W5500_TASK_PRIORITYY
 #define W5500_TASK_FREQUENCY_PERIOD        100
 #define W5500_CHECK_FREQUENCY_PERIOD       1000
+#define W5500_HEART_BEAT_TIMEOUT           3000
 #else 
 #define W5500_GetTick                      HAL_GetTick
 #define W5500_Delay                        HAL_Delay
 #endif      
 
-#define W5500_SOCKET_NUM_START             0b0001110110010111      
+#define W5500_SOCKET_NUM_START             7070      
 #define W5500_SOCKET_NUM_INCREMENT         NO      
 #define W5500_USER_NETWORK_CONFIG          YES
 #if (W5500_USER_NETWORK_CONFIG==NO)

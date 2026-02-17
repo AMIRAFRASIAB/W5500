@@ -19,7 +19,11 @@
 #include "task.h"
 #include "stream_buffer.h"
 #include "semphr.h"
+#include "timers.h"
 
+#if W5500_HEART_BEAT_TIMEOUT < 0
+#error "W5500_HEART_BEAT_TIMEOUT Can not be negative"
+#endif
 
 #if W5500_TRACE_ENABLE == YES 
   #include W5500_DEBUG_LIB
@@ -31,16 +35,21 @@
   #define LOG_FATAL(...)
 #endif
 //-------------------------------------------------------------------------------
-
+static TimerHandle_t xHBTimerHandler = NULL;
 static TaskHandle_t hTaskW5500 = NULL;
 static StreamBufferHandle_t hStreamTx = NULL;
 static StreamBufferHandle_t hStreamRx = NULL;
 static SemaphoreHandle_t hMutexTx = NULL;
 static SemaphoreHandle_t hMutexRx = NULL;
 static bool __initialized = false;
+static bool prvbHbTimOverflow = false;
 static W5500_Cnf_t* info = NULL;
 void (*lan_connected_callback) (void)     = NULL;
 void (*lan_disconnected_callback) (void)  = NULL;
+//-------------------------------------------------------------------------------
+static void prvvW5500HBTimerCallbackFunction (TimerHandle_t xTimer) {
+  prvbHbTimOverflow = true;
+}
 //-------------------------------------------------------------------------------
 /**
  * @brief FreeRTOS task function to service W5500 client communication.
@@ -67,10 +76,18 @@ static void serviceW5500 (void* const pvParameters) {
       if (lan_disconnected_callback != NULL) {
         lan_disconnected_callback();
       }
+      if (xHBTimerHandler) {
+        xTimerStop(xHBTimerHandler, 0);
+      }
       continue;
     }
     else {
       period = W5500_TASK_FREQUENCY_PERIOD;
+    }
+    if (prvbHbTimOverflow) {
+      prvbHbTimOverflow = false;
+      w5500_client_disconnect(1);
+      continue;
     }
     if (lan_connected_callback != NULL) {
       lan_connected_callback();
@@ -78,6 +95,9 @@ static void serviceW5500 (void* const pvParameters) {
     //Receive
     rxSize = w5500_client_receive(rxBuf, sizeof(rxBuf));
     if (rxSize > 0) {
+      if (xHBTimerHandler) {
+        xTimerReset(xHBTimerHandler, 0);
+      }
       xStreamBufferSend(hStreamRx, rxBuf, rxSize, 0);
     }
     //Transmit
@@ -102,6 +122,9 @@ bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   }
   bool status = true;
   info = cnf;
+  #if W5500_HEART_BEAT_TIMEOUT != 0
+  status = status && (xHBTimerHandler = xTimerCreate("W5500HBTIM", pdMS_TO_TICKS(W5500_HEART_BEAT_TIMEOUT), pdFALSE, NULL, &prvvW5500HBTimerCallbackFunction)) != NULL;
+  #endif
   status = status && (hMutexTx = xSemaphoreCreateMutex()) != NULL;
   status = status && (hMutexRx = xSemaphoreCreateMutex()) != NULL;
   status = status && (hStreamTx = xStreamBufferCreate(W5500_STREAM_BUF_TX_SIZE, 1)) != NULL;
