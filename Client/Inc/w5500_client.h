@@ -18,7 +18,7 @@ typedef struct __W5500_Cnf_s {
   uint16_t      port;
 } W5500_Cnf_t;
 
-bool w5500_client_init (const W5500_Cnf_t* INFO);
+bool w5500_client_init (const W5500_Cnf_t* INFO, uint8_t ucPhyConfigInbdex);
 bool w5500_cable_getStatus (uint8_t tries, uint16_t delay);
 int32_t w5500_client_transmit (uint8_t* buf, uint16_t len);
 uint16_t w5500_client_receive (uint8_t* buf, uint16_t len);

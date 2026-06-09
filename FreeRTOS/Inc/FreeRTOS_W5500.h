@@ -22,7 +22,7 @@ typedef enum {
 } W5500State_e;
 
 W5500State_e xFreeRTOSW5500GetTaskState (void);
-bool bFreeRTOSW5500ClientInit (W5500_Cnf_t* pxConfig);
+bool bFreeRTOSW5500ClientInit (W5500_Cnf_t* pxConfig, uint8_t ucPhyConfigIndex);
 uint32_t ulFreeRTOSW5500ClientReceive (uint8_t* buf, uint8_t len, uint32_t ticksToWait);
 void vFreeRTOSW5500TaskDisable (void);
 void vFreeRTOSW5500Transmit (W5500TxItem_t* pxItem);

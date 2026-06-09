@@ -20,6 +20,7 @@ static TimerHandle_t xIdleTimerHandle = NULL;
 static W5500_Cnf_t* pxInfo = NULL;
 static QueueHandle_t xQueueHandleTx = NULL;
 static W5500State_e xState = eW5500StateTryForConnection;
+static uint8_t ucPhyIndex = 0;
 //-------------------------------------------------------------------------------
 static void prvvIdleTimerCallbackFunction (TimerHandle_t xTimer) {
   // Timeout expired -> reconnect the socket
@@ -35,7 +36,7 @@ static void prvvServiceW5500 (void* const pvParameters) {
   #if (W5500_INACTIVITY_TIMER_PERIOD > 0)
   status = status && (xIdleTimerHandle = xTimerCreate(NULL, pdMS_TO_TICKS(W5500_INACTIVITY_TIMER_PERIOD), pdFALSE, NULL, &prvvIdleTimerCallbackFunction)) != NULL;
   #endif
-  status = status && w5500_client_init(pxInfo);
+  status = status && w5500_client_init(pxInfo, ucPhyIndex);
   if (!status) {
     W5500_RTOS_TASK_STOP();
     vTaskSuspend(NULL);
@@ -97,7 +98,7 @@ static void prvvServiceW5500 (void* const pvParameters) {
       break;
       case eW5500StateDisconnect: {
         if (xIdleTimerHandle) xTimerStop(xIdleTimerHandle, 0); // Timer stop
-        W5500_RTOS_SOCKET_DISCONNECTED() //LOG
+        W5500_RTOS_SOCKET_DISCONNECTED(); //LOG
         xState = eW5500StateTryForConnection;
         w5500_client_disconnect();
         vTaskDelay(pdMS_TO_TICKS(50));
@@ -124,12 +125,13 @@ W5500State_e xFreeRTOSW5500GetTaskState (void) {
   return xState;
 }
 //-------------------------------------------------------------------------------
-bool bFreeRTOSW5500ClientInit (W5500_Cnf_t* pxConfig) {
+bool bFreeRTOSW5500ClientInit (W5500_Cnf_t* pxConfig, uint8_t ucPhyConfigIndex) {
   W5500_LOG_RTOS_INITIAL(); //LOG
   if (xW5500TaskHandle) {
     return true;
   }
   pxInfo = pxConfig;
+  ucPhyIndex = ucPhyConfigIndex;
   bool status = W5500_TaskCreate(prvvServiceW5500, "W5500", (W5500_TASK_STACK_SIZE_BYTES / 4), NULL, W5500_TASK_PRIORITY, &xW5500TaskHandle) == pdTRUE;
   if (!status) {
     W5500_LOG_RTOS_INITIAL_FAIL(); //LOG

@@ -26,10 +26,37 @@ const W5500_Cnf_t STATIC_INFO = {
 #endif
 
 // Phy Configs
-wiz_PhyConf xPhyConf = {
+wiz_PhyConf xPhyConfArray[5] = {
+  [0] = {
   .by     = PHY_CONFBY_SW,
-  .duplex = PHY_MODE_AUTONEGO,
-  .speed  = PHY_SPEED_100
+  .duplex = PHY_DUPLEX_HALF,
+  .speed  = PHY_SPEED_10,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [1] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_FULL,
+  .speed  = PHY_SPEED_10,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [2] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_HALF,
+  .speed  = PHY_SPEED_100,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [3] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_FULL,
+  .speed  = PHY_SPEED_100,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [4] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_HALF,
+  .speed  = PHY_SPEED_100,
+  .mode   = PHY_MODE_AUTONEGO
+  },
 };
 
 //--------------------------------------------------------------------------
@@ -55,7 +82,7 @@ bool w5500_check_presence (void) {
   return true;
 }
 //--------------------------------------------------------------------------
-bool w5500_client_init (const W5500_Cnf_t* INFO) {
+bool w5500_client_init (const W5500_Cnf_t* INFO, uint8_t ucPhyConfigInbdex) {
   #if (W5500_USER_NETWORK_CONFIG==NO)
   INFO = &STATIC_INFO;
   #else 
@@ -93,7 +120,7 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     W5500_Delay(1);
     close(i);
   }
-  wizphy_setphyconf(&xPhyConf);
+  wizphy_setphyconf(&xPhyConfArray[ucPhyConfigInbdex]);
   // Socket number is #1
   uint8_t sn = 1;              
   // Disable :confilct:unreach:pppoe:mp

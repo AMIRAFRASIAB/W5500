@@ -71,6 +71,7 @@ bool bW5500IrqFlag = false;
 #define LL_SYSCFG_EXTI_LINE_IRQ      CONCAT(LL_SYSCFG_EXTI_LINE, W5500_IRQ_PIN)
 
 #define LL_DMA_ClearFlag(f, n)       CONCAT(LL_DMA_ClearFlag_, f, n)
+#define LL_SYSCFG_EXTI_PORTX         CONCAT(LL_SYSCFG_EXTI_PORT, W5500_IRQ_GPIO)
 
 /**************************************************************/
 /* Private APIs */
@@ -87,7 +88,7 @@ static void prvvW5500IrqPinInit (void) {
   LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_IRQ);
   LL_EXTI_EnableFallingTrig_0_31(LL_EXTI_LINE_IRQ);
   LL_EXTI_DisableRisingTrig_0_31(LL_EXTI_LINE_IRQ);
-  LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTC, LL_SYSCFG_EXTI_LINE_IRQ);
+  LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTX, LL_SYSCFG_EXTI_LINE_IRQ);
   NVIC_ClearPendingIRQ(W5500_IRQn);
   NVIC_SetPriority(W5500_IRQn, W5500_IRQ_PIN_PRIORITY);
   NVIC_EnableIRQ(W5500_IRQn);
@@ -154,7 +155,7 @@ static bool prvbW5500SpiInit (void) {
     .TransferDirection = LL_SPI_FULL_DUPLEX,
   };
   if (LL_SPI_Init(SPI, &spix) != SUCCESS) {
-    W5500_LOG_SPI_INIT_FAIL() //LOG
+    W5500_LOG_SPI_INIT_FAIL(); //LOG
     return false;
   }
   #if W5500_USE_FreeRTOS == YES

@@ -89,7 +89,7 @@
       
 #define W5500_USER_NETWORK_CONFIG          NO
 #if (W5500_USER_NETWORK_CONFIG==NO)
-#define W5500_MAC_ADDRESS                  0x00, 0x08, 0xDC, 0xAB, 0xCD, 0xEF
+#define W5500_MAC_ADDRESS                  0x00, 0x08, 0x83, 0xAB, 0xCD, 0xEF
 #define W5500_PORT                         8234
 #define W5500_OWN_IP                       192, 168, 14,  4
 #define W5500_DESTINATION_IP               192, 168, 14,  2
