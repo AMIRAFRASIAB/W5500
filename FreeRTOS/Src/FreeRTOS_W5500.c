@@ -18,7 +18,7 @@ static StreamBufferHandle_t xStreamHandleRx = NULL;
 static SemaphoreHandle_t xMutexRxHandle = NULL;
 static TimerHandle_t xIdleTimerHandle = NULL;
 static W5500_Cnf_t* pxInfo = NULL;
-static QueueHandle_t xQueueHandleTx = NULL;
+QueueHandle_t xQueueHandleTx = NULL;
 static W5500State_e xState = eW5500StateTryForConnection;
 static uint8_t ucPhyIndex = 0;
 //-------------------------------------------------------------------------------
@@ -60,20 +60,22 @@ static void prvvServiceW5500 (void* const pvParameters) {
       break;
       case eW5500StateTransiver: {
         if (xQueueReceive(xQueueHandleTx, &xTxObj, pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY)) == pdTRUE) {
-           if (send(1, xTxObj.pucAddr, xTxObj.ulLen) != xTxObj.ulLen) {
-             W5500_RTOS_TRANSMIT_FAIL(); //LOG
-           }
-           else {
-             // Check PHY
-             uint8_t tmp;
-             ctlwizchip(CW_GET_PHYLINK, (void*)&tmp); 
-             if (tmp == PHY_LINK_OFF) {
-               W5500_LOG_CABLE_DISCONNECT(); //LOG
-               xState = eW5500StateDisconnect;
-             }
-           }
+          if (xTxObj.pucAddr != NULL) { 
+            if (send(1, (uint8_t*)xTxObj.pucAddr, xTxObj.ulLen) != xTxObj.ulLen) {
+              W5500_RTOS_TRANSMIT_FAIL(); //LOG
+            }
+            else {
+              // Check PHY
+              uint8_t tmp;
+              ctlwizchip(CW_GET_PHYLINK, (void*)&tmp); 
+              if (tmp == PHY_LINK_OFF) {
+                W5500_LOG_CABLE_DISCONNECT(); //LOG
+                xState = eW5500StateDisconnect;
+              }
+            }
+          }
         }
-        if (bW5500IrqFlag) {
+        if (xTxObj.pucAddr == NULL) {
           bW5500IrqFlag = false;
           uint8_t uc = getSn_IR(1);
           if (uc & Sn_IR_RECV) {
@@ -86,7 +88,7 @@ static void prvvServiceW5500 (void* const pvParameters) {
               }
             }
           }
-          if (uc & Sn_IR_DISCON) {  
+          if (uc & Sn_IR_DISCON) {
             if (xIdleTimerHandle) xTimerStop(xIdleTimerHandle, 0); // Timer stop
             xState = eW5500StateTryForConnection;
             W5500_RTOS_SOCKET_DISCONNECTED(); //LOG

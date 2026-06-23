@@ -16,7 +16,9 @@
 #if W5500_USE_FreeRTOS == YES
   #include "FreeRTOS.h"
   #include "task.h"
+  #include "queue.h"
   #include "semphr.h"
+  #include "FreeRTOS_W5500.h"
   static SemaphoreHandle_t hSemaphore = NULL;
 #endif
 static uint8_t flag = 0;
@@ -400,5 +402,12 @@ bool bW5500HardWareInit (void) {
 //-----------------------------------------------------------------------
 void W5500_IRQHandler (void) {
   LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_IRQ);
+  extern QueueHandle_t xQueueHandleTx;
+  static W5500TxItem_t xDummyItem = {
+    .pucAddr = NULL,
+    .ulLen   = 0,
+  };
+  xQueueSendFromISR(xQueueHandleTx, &xDummyItem, NULL);
   bW5500IrqFlag = true;
+  portYIELD_FROM_ISR(pdTRUE);
 }

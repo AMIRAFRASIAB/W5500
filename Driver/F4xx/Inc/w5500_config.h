@@ -27,20 +27,21 @@
 #include "swo.h"
 #include "FreeRTOS.h"
 #include "task.h"
-
+#include "bsp.h"
+#include "task_manager.h"
 
 #define W5500_SPI                          1       
-#define W5500_SPI_TIMEOUT                  10      
-#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV2 //42 MHz
+#define W5500_SPI_TIMEOUT                  20      
+#define W5500_SPI_PRESCALER                LL_SPI_BAUDRATEPRESCALER_DIV4 //21 MHz
 
 #define W5500_CS_GPIO                      D
 #define W5500_CS_PIN                       2
 
-#define W5500_RST_GPIO                     B
-#define W5500_RST_PIN                      5
+#define W5500_RST_GPIO                     C
+#define W5500_RST_PIN                      12
 
-#define W5500_MOSI_GPIO                    A
-#define W5500_MOSI_PIN                     7
+#define W5500_MOSI_GPIO                    B
+#define W5500_MOSI_PIN                     5
 #define W5500_MOSI_AF                      5
 
 #define W5500_MISO_GPIO                    B
@@ -52,10 +53,10 @@
 #define W5500_SCLK_AF                      5
 
 #define W5500_IRQ_GPIO                     C
-#define W5500_IRQ_PIN                      9
-#define W5500_IRQn                         EXTI9_5_IRQn
-#define W5500_IRQHandler                   EXTI9_5_IRQHandler
-#define W5500_IRQ_PIN_PRIORITY             7
+#define W5500_IRQ_PIN                      13
+#define W5500_IRQn                         EXTI15_10_IRQn
+#define W5500_IRQHandler                   EXTI15_10_IRQHandler
+#define W5500_IRQ_PIN_PRIORITY             bspW5500_IRQ_PIN_PRIORITY
 
 #define W5500_SPI_USE_DMA                  YES
 #if (W5500_SPI_USE_DMA==YES)             
@@ -66,7 +67,7 @@
 #define W5500_DMA_RX_NUM                   2
 #define W5500_DMA_RX_STREAM                2
 #define W5500_DMA_RX_CHANNEL               3
-#define W5500_DMA_RX_IRQ_PRIORITY          6
+#define W5500_DMA_RX_IRQ_PRIORITY          bspW5500_DMA_RX_IRQ_PRIORITY
 #define W5500_DMA_RX_STREAM_PRIORITY       LL_DMA_PRIORITY_MEDIUM
 #endif                                     
                                            
@@ -74,12 +75,12 @@
 #if (W5500_USE_FreeRTOS==YES)
 #define W5500_GetTick                      xTaskGetTickCount
 #define W5500_Delay                        vTaskDelay
-#define W5500_TaskCreate                   xTaskCreate
+#define W5500_TaskCreate                   tm_xTaskCreate
 #define W5500_STREAM_BUF_RX_SIZE           128
 #define W5500_QUEUE_TX_LEN                 8
-#define W5500_TASK_STACK_SIZE_BYTES        2048
-#define W5500_TASK_PRIORITY                2
-#define W5500_TASK_RECONNECTION_DELAY      200
+#define W5500_TASK_STACK_SIZE_BYTES        bspW5500_STACK_SIZE
+#define W5500_TASK_PRIORITY                bspW5500_TASK_PRIORITY                
+#define W5500_TASK_RECONNECTION_DELAY      1000
 #define W5500_INACTIVITY_TIMER_PERIOD      0 // (0 = Disable This feature) 
 
 #else 
@@ -87,11 +88,11 @@
 #define W5500_Delay                        HAL_Delay
 #endif      
       
-#define W5500_USER_NETWORK_CONFIG          NO
+#define W5500_USER_NETWORK_CONFIG          NO  
 #if (W5500_USER_NETWORK_CONFIG==NO)
-#define W5500_MAC_ADDRESS                  0x00, 0x08, 0x83, 0xAB, 0xCD, 0xEF
-#define W5500_PORT                         8234
-#define W5500_OWN_IP                       192, 168, 14,  4
+#define W5500_MAC_ADDRESS                  0x00, 0x08, 0x85, 0x80, 0xCD, 0xEF
+#define W5500_PORT                         8250
+#define W5500_OWN_IP                       192, 168, 14,  50
 #define W5500_DESTINATION_IP               192, 168, 14,  2
 #define W5500_SUBNET                       255, 255, 255, 0
 #define W5500_GATEWAY                      192, 168, 14,  1

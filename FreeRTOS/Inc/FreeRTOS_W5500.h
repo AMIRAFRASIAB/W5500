@@ -11,7 +11,7 @@
 #include "w5500_client.h"
 
 typedef struct {
-  uint8_t*    pucAddr;
+  const uint8_t*    pucAddr;
   uint32_t    ulLen;
 } W5500TxItem_t;
 
