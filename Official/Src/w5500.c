@@ -17,8 +17,8 @@
 #define GPIOx  CONCAT(GPIO, W5500_CS_GPIO)
 #define PINx   CONCAT(LL_GPIO_PIN_, W5500_CS_PIN)
 
-#define CS_LOW()   LL_GPIO_ResetOutputPin(GPIOx, PINx)
-#define CS_HIGH()  LL_GPIO_SetOutputPin(GPIOx, PINx)
+#define CS_LOW()   vW5500CsLow()//LL_GPIO_ResetOutputPin(GPIOx, PINx)
+#define CS_HIGH()  vW5500CsHigh()//LL_GPIO_SetOutputPin(GPIOx, PINx)
 
 
 
@@ -29,7 +29,7 @@ uint8_t WIZCHIP_READ (uint32_t AddrSel) {
   uint8_t ret;
   uint8_t spi_data[3];
   uint8_t* restrict puc = spi_data;
-//   WIZCHIP_CRITICAL_ENTER();
+//  WIZCHIP_CRITICAL_ENTER();
   CS_LOW();
   AddrSel |= (_W5500_SPI_READ_ | _W5500_SPI_VDM_OP_);
 	*puc++ = (AddrSel & 0x00FF0000) >> 16;

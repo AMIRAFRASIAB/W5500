@@ -10,8 +10,38 @@
 #include "task.h"
 #endif
 
-#if (W5500_USER_NETWORK_CONFIG==NO)
-const W5500_Cnf_t STATIC_INFO = {
+static uint16_t usSocketId[8] = {
+  W5500_SOCKET_ID_0,
+  W5500_SOCKET_ID_1,
+  W5500_SOCKET_ID_2,
+  W5500_SOCKET_ID_3,
+  W5500_SOCKET_ID_4,
+  W5500_SOCKET_ID_5,
+  W5500_SOCKET_ID_6,
+  W5500_SOCKET_ID_7};
+
+const uint16_t usPortW5500[8] = {
+  W5500_PORT_0,
+  W5500_PORT_1,
+  W5500_PORT_2,
+  W5500_PORT_3,
+  W5500_PORT_4,
+  W5500_PORT_5,
+  W5500_PORT_6, 
+  W5500_PORT_7};
+
+static const uint8_t ucDstIpArray[8][4] = {
+  {W5500_DESTINATION_IP_0},
+  {W5500_DESTINATION_IP_1},
+  {W5500_DESTINATION_IP_2},
+  {W5500_DESTINATION_IP_3},
+  {W5500_DESTINATION_IP_4},
+  {W5500_DESTINATION_IP_5},
+  {W5500_DESTINATION_IP_6},
+  {W5500_DESTINATION_IP_7},
+};  
+
+static const W5500_Cnf_t xStaticConf = {
   .info = {
     .mac   = {W5500_MAC_ADDRESS},
     .ip    = {W5500_OWN_IP},
@@ -20,13 +50,10 @@ const W5500_Cnf_t STATIC_INFO = {
     .dns   = {W5500_DNS},
     .dhcp  =  W5500_DHCP,
   },
-  .dest_ip = W5500_DESTINATION_IP,
-  .port    = W5500_PORT,
 };
-#endif
 
 // Phy Configs
-wiz_PhyConf xPhyConfArray[5] = {
+static const wiz_PhyConf xPhyConfArray[5] = {
   [0] = {
   .by     = PHY_CONFBY_SW,
   .duplex = PHY_DUPLEX_HALF,
@@ -82,15 +109,9 @@ bool w5500_check_presence (void) {
   return true;
 }
 //--------------------------------------------------------------------------
-bool w5500_client_init (const W5500_Cnf_t* INFO, uint8_t ucPhyConfigInbdex) {
-  #if (W5500_USER_NETWORK_CONFIG==NO)
-  INFO = &STATIC_INFO;
-  #else 
-  if (INFO == NULL) {
-    W5500_LOG_CONFIG_NULL(); //LOG
-    return false;
-  }
-  #endif
+bool w5500_client_init (const W5500_Cnf_t* pxConf) {
+  W5500_Cnf_t xConf;
+  xConf = (pxConf != NULL)? *pxConf : xStaticConf;
   W5500_LOG_CLIENT_INIT(); //LOG
   if (!bW5500HardWareInit()) {
     goto FAIL;
@@ -98,10 +119,9 @@ bool w5500_client_init (const W5500_Cnf_t* INFO, uint8_t ucPhyConfigInbdex) {
   reg_wizchip_cs_cbfunc(vW5500CsLow, vW5500CsHigh);
   reg_wizchip_spi_cbfunc(ucW5500SpiReceive1Byte, vW5500SpiTransmit1Byte);  
   reg_wizchip_spiburst_cbfunc(vW5500SpiReceiveBurstDMA, vW5500SpiTransmitBurstDMA);  
-  uint8_t tmp;
 	uint8_t memsize[2][8] = {
-    { 2, 2, 2, 2, 2, 2, 2, 2 },
-    { 2, 2, 2, 2, 2, 2, 2, 2 },
+    {W5500_MEM_SIZE},
+    {W5500_MEM_SIZE},
   };
   W5500_Delay(1);
   wizphy_reset();
@@ -112,31 +132,32 @@ bool w5500_client_init (const W5500_Cnf_t* INFO, uint8_t ucPhyConfigInbdex) {
   // Check W5500 ic presence
   if (!w5500_check_presence()) {
     goto FAIL;
-  }  
-  ctlnetwork(CN_SET_NETINFO, (void*)&INFO->info);
+  }
+  ctlnetwork(CN_SET_NETINFO, (void*)&xConf.info);
   w5500_cable_getStatus(3, 100);
   for (uint8_t i = 0; i < 8; i++) {
     disconnect(i);
     W5500_Delay(1);
     close(i);
   }
-  wizphy_setphyconf(&xPhyConfArray[ucPhyConfigInbdex]);
-  // Socket number is #1
-  uint8_t sn = 1;              
+  wizphy_setphyconf((wiz_PhyConf*)&xPhyConfArray[W5500_PHY_LINK_INDEX]);
+  
   // Disable :confilct:unreach:pppoe:mp
-  setIMR(0x00); 
+  setIMR(0x00);
   // Clear IMR status register
   setIR(0xFF);
-  // Enable socket number #1 interrupt
-  setSIMR(0x01 << sn);
-  // Enable socket #1 RECV & TIMEOUT interrupt
-  setSn_IMR(sn, Sn_IR_RECV | Sn_IR_DISCON);  
-  // Clear socket #1 all interrupt flags
-  setSn_IR(sn, 0xFF);                         
-  // 16Kbyte internal stack
-  setSn_TXBUF_SIZE(sn, 16);              
-  // KeepAlive packet timer = 5s
-//  setSn_KPALVTR(sn, 1);                    
+  for (uint8_t i = 0; i < 8; i++) {
+    if (usPortW5500[i] == 0) {
+      continue;
+    }
+    // Enable socket number #i interrupt
+    uint8_t ucTemp = getSIMR() | (0x01 << i);
+    setSIMR(ucTemp);
+    // Enable socket #i RECV & TIMEOUT interrupt
+    setSn_IMR(i, Sn_IR_RECV | Sn_IR_DISCON);  
+    // Clear socket #i all interrupt flags
+    setSn_IR(i, 0xFF); 
+  }
   return true;
   
   FAIL:
@@ -144,8 +165,11 @@ bool w5500_client_init (const W5500_Cnf_t* INFO, uint8_t ucPhyConfigInbdex) {
   return false;
 }
 //--------------------------------------------------------------------------
-int32_t w5500_client_transmit (uint8_t* buf, uint16_t len) {
-  int32_t ret = send(1, buf, len);
+int32_t w5500_client_transmit (uint8_t* buf, uint16_t len, uint8_t ucSockNum) {
+  if (buf == NULL || len == 0 || ucSockNum > 7) {
+    return 0;
+  }
+  int32_t ret = send(ucSockNum, buf, len);
   if (ret != len) {
     W5500_LOG_TRANSMIT_FAIL(); //LOG
     return -1;
@@ -154,17 +178,17 @@ int32_t w5500_client_transmit (uint8_t* buf, uint16_t len) {
   return ret;
 }
 //--------------------------------------------------------------------------
-uint16_t w5500_client_receive (uint8_t* buf, uint16_t len) {
-  if (buf == NULL || len == 0) {
+uint16_t w5500_client_receive (uint8_t* buf, uint16_t len, uint8_t ucSockNum) {
+  if (buf == NULL || len == 0 || ucSockNum > 7) {
     return 0;
   }
-  int32_t rx_size = getSn_RX_RSR(1);
+  int32_t rx_size = getSn_RX_RSR(ucSockNum);
   if (rx_size <= 0) {
     // No data or error
     return 0;
   }
   uint16_t to_read = (len < rx_size) ? len : (uint16_t)rx_size;
-  int32_t ret = recv(1, buf, to_read);
+  int32_t ret = recv(ucSockNum, buf, to_read);
   if (ret <= 0) {
     W5500_LOG_RECEIVE_FAIL();
     return 0;
@@ -172,34 +196,29 @@ uint16_t w5500_client_receive (uint8_t* buf, uint16_t len) {
   return (uint16_t)ret;
 }
 //--------------------------------------------------------------------------
-bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
-  #if (W5500_USER_NETWORK_CONFIG==NO)
-  INFO = &STATIC_INFO;
-  #else 
-  if (INFO == NULL) {
-    W5500_LOG_CONFIG_NULL(); //LOG
+bool w5500_client_reconnect (uint8_t ucSockNum) {
+  if (ucSockNum > 7) {
     return false;
   }
-  #endif
   if (!w5500_cable_getStatus(1, 0)) {
     return false;
   }
-  uint8_t status = getSn_SR(1);
+  uint8_t status = getSn_SR(ucSockNum);
   if (status == SOCK_ESTABLISHED) {
     // Already connected
     return true;
   }
   // If socket is not closed, close it first
   if (status != SOCK_CLOSED) {
-    close(1);
+    close(ucSockNum);
   }
   // Create socket again
-  if (socket(1, Sn_MR_TCP, 0, 0) != 1) {
+  if (socket(ucSockNum, Sn_MR_TCP, usSocketId[ucSockNum], 0) != ucSockNum) {
     W5500_LOG_SOCKET_FAIL();
     return false;
   }
   // Attempt to connect to the server
-  if (connect(1, (uint8_t*)INFO->dest_ip, INFO->port) != SOCK_OK) {
+  if (connect(ucSockNum, (uint8_t*)&ucDstIpArray[ucSockNum][0], usPortW5500[ucSockNum]) != SOCK_OK) {
     W5500_LOG_CONNECT_ATTEMP_FAIL();
     return false;
   }
@@ -207,13 +226,16 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   return true;
 }
 //--------------------------------------------------------------------------
-bool w5500_client_disconnect (void) {
-  uint8_t status = getSn_SR(1);
+bool w5500_client_disconnect (uint8_t ucSockNum) {
+  if (ucSockNum > 7) {
+    return false;
+  }
+  uint8_t status = getSn_SR(ucSockNum);
   // Already closed
   if (status == SOCK_CLOSED) {
       return true;
   }
-  close(1);
-  return (getSn_SR(1) == SOCK_CLOSED);
+  close(ucSockNum);
+  return (getSn_SR(ucSockNum) == SOCK_CLOSED);
 }
 //--------------------------------------------------------------------------

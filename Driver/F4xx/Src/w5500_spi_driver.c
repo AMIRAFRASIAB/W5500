@@ -20,10 +20,10 @@
   #include "semphr.h"
   #include "FreeRTOS_W5500.h"
   static SemaphoreHandle_t hSemaphore = NULL;
+  static SemaphoreHandle_t xMutexSpiAcccess = NULL;
 #endif
 static uint8_t flag = 0;
 static uint8_t rxByte;
-bool bW5500IrqFlag = false;
 
 /* Private Macros */
 #define CS                           BB_GPIO_ODR(W5500_CS_GPIO, W5500_CS_PIN)
@@ -79,6 +79,7 @@ bool bW5500IrqFlag = false;
 /* Private APIs */
 /**************************************************************/
 static void prvvW5500IrqPinInit (void) {  
+  #if (W5500_USE_FreeRTOS == YES)
   W5500_LOG_IRQ_INIT(); //LOG
   __HAL_RCC_SYSCFG_CLK_ENABLE();
   __HAL_RCC_IRQ_CLK_ENABLE();
@@ -94,6 +95,7 @@ static void prvvW5500IrqPinInit (void) {
   NVIC_ClearPendingIRQ(W5500_IRQn);
   NVIC_SetPriority(W5500_IRQn, W5500_IRQ_PIN_PRIORITY);
   NVIC_EnableIRQ(W5500_IRQn);
+  #endif
 }
 //-----------------------------------------------------------------------
 static void prvvW5500GpioInit (void) {
@@ -162,7 +164,8 @@ static bool prvbW5500SpiInit (void) {
   }
   #if W5500_USE_FreeRTOS == YES
   hSemaphore = xSemaphoreCreateBinary();
-  if (hSemaphore == NULL) {
+  xMutexSpiAcccess = xSemaphoreCreateMutex();
+  if (hSemaphore == NULL || xMutexSpiAcccess == NULL) {
     W5500_LOG_SPI_SMPHR_CREATE_FAIL(); //LOG
     return false;
   }
@@ -261,11 +264,17 @@ void vW5500RstHigh (void) {
 }
 //-----------------------------------------------------------------------
 void vW5500CsLow (void) {
+  #if (W5500_USE_FreeRTOS == YES)
+  xSemaphoreTake(xMutexSpiAcccess, portMAX_DELAY);
+  #endif
   CS = 0;
 }
 //-----------------------------------------------------------------------
 void vW5500CsHigh (void) {
   CS = 1;
+  #if (W5500_USE_FreeRTOS == YES)
+  xSemaphoreGive(xMutexSpiAcccess);
+  #endif
 }
 //-----------------------------------------------------------------------
 void vW5500SpiTransmit1Byte (uint8_t ucData) {
@@ -402,12 +411,6 @@ bool bW5500HardWareInit (void) {
 //-----------------------------------------------------------------------
 void W5500_IRQHandler (void) {
   LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_IRQ);
-  extern QueueHandle_t xQueueHandleTx;
-  static W5500TxItem_t xDummyItem = {
-    .pucAddr = NULL,
-    .ulLen   = 0,
-  };
-  xQueueSendFromISR(xQueueHandleTx, &xDummyItem, NULL);
-  bW5500IrqFlag = true;
+  vFreeRTOSW5500IrqHook();
   portYIELD_FROM_ISR(pdTRUE);
 }

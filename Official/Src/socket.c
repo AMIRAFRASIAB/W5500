@@ -323,7 +323,7 @@ int8_t socket(uint8_t sn, uint8_t protocol, uint16_t port, uint8_t flag)
    if(!port)
    {
       port = sock_any_port++;
-      if(sock_any_port == 0xFFF0) sock_any_port = SOCK_ANY_PORT_NUM;
+      if(sock_any_port >= 0xFFF0) sock_any_port = SOCK_ANY_PORT_NUM;
    }
    setSn_PORTR(sn,port);
    setSn_CR(sn,Sn_CR_OPEN);

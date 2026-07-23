@@ -16,16 +16,18 @@ typedef struct {
 } W5500TxItem_t;
 
 typedef enum {
+  eW5500StateDisconnect,
   eW5500StateTryForConnection,
   eW5500StateTransiver,
-  eW5500StateDisconnect,
 } W5500State_e;
 
-W5500State_e xFreeRTOSW5500GetTaskState (void);
-bool bFreeRTOSW5500ClientInit (W5500_Cnf_t* pxConfig, uint8_t ucPhyConfigIndex);
-uint32_t ulFreeRTOSW5500ClientReceive (uint8_t* buf, uint8_t len, uint32_t ticksToWait);
-void vFreeRTOSW5500TaskDisable (void);
-void vFreeRTOSW5500Transmit (W5500TxItem_t* pxItem);
+bool bFreeRTOSW5500ClientInit (void);
+void vFreeRTOSW5500Transmit (W5500TxItem_t* pxItem, uint8_t ucSocketNumber);
+void vFreeRTOSW5500IrqHook (void);
+W5500State_e xFreeRTOSW5500GetTaskState (uint8_t ucSocketNumber);
+uint32_t ulFreeRTOSW5500ClientReceive (uint8_t* buf, uint8_t len, uint32_t ticksToWait, uint8_t ucSocketNumber);
+void vFreeRTOSW5500TaskDisable (uint8_t ucSocketNumber);
+
 
 #ifdef __cplusplus
   }
