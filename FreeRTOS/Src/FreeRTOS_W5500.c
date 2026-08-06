@@ -12,6 +12,11 @@
 #include "timers.h"
 #include "w55_cmd_decoder.h"
 
+const W5500TxItem_t xW55EchoItem = {
+  .pucAddr = (uint8_t*)"PONG\n",
+  .ulLen   = 5,
+};
+
 typedef struct {
   TaskHandle_t          xTask;
   StreamBufferHandle_t  xStreamRx;
@@ -20,6 +25,7 @@ typedef struct {
   W5500State_e          xState;
   QueueHandle_t         xQTxItem;
   uint8_t               ucIndex;
+  bool                  bIdleTimerOverflowFlag;
 } ClientObj_t;
 
 typedef struct {
@@ -51,11 +57,15 @@ static void prvvServiceLanDecoder (void* const pvParameters);
 //-------------------------------------------------------------------------------
 static void prvvIdleTimerCallbackFunction (TimerHandle_t xTimer) {
   // Timeout expired -> reconnect the socket
+  W5500TxItem_t xObj = {
+    .pucAddr  = (uint8_t*)0x77,
+    .ulLen    = 0,
+  };
   ClientObj_t* pxObj = xCliArr;
   uint8_t ucLen = sizeof(xCliArr) / sizeof(*xCliArr);
   while (ucLen--) {
     if (pxObj->xTimIdle == xTimer) {
-      pxObj->xState = eW5500StateDisconnect;
+      xQueueSend(pxObj->xQTxItem, &xObj, 0);
       return;
     }
     pxObj++;
@@ -78,79 +88,68 @@ static void prvvServiceW5500 (void* const pvParameters) {
   }
   uint8_t ucRxBuf[W5500_STREAM_BUF_RX_SIZE];
   W5500TxItem_t xTxObj;
-  
+  goto DISCONNECT;
   while (1) {
-    switch (pxClient->xState) {
-      case eW5500StateTryForConnection: {
-        W5500_RTOS_TRY_FOR_CONNECTION(); //LOG
-        if (w5500_client_reconnect(pxClient->ucIndex)) {
-          pxClient->xState = eW5500StateTransiver;
-        }
-        else {
-          vTaskDelay(pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY));
+    if (xQueueReceive(pxClient->xQTxItem, &xTxObj, pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY)) == pdTRUE) {
+      if (xTxObj.pucAddr == (uint8_t*)0x77) {
+        goto DISCONNECT;
+      }
+      else if (xTxObj.pucAddr != NULL && xTxObj.pucAddr != (uint8_t*)0x55) { 
+        if (send(pxClient->ucIndex, (uint8_t*)xTxObj.pucAddr, xTxObj.ulLen) != xTxObj.ulLen) {
+          goto DISCONNECT;
         }
       }
-      break;
-      case eW5500StateTransiver: {
-        xTxObj.pucAddr = (uint8_t*)1; //Dummy address
-        if (xQueueReceive(pxClient->xQTxItem, &xTxObj, pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY)) == pdTRUE) {
-          if (xTxObj.pucAddr != NULL && xTxObj.pucAddr != (uint8_t*)1) { 
-            if (send(pxClient->ucIndex, (uint8_t*)xTxObj.pucAddr, xTxObj.ulLen) != xTxObj.ulLen) {
-              W5500_RTOS_TRANSMIT_FAIL(); //LOG
-            }
-            else {
-              // Check PHY
-              uint8_t tmp;
-              ctlwizchip(CW_GET_PHYLINK, (void*)&tmp); 
-              if (tmp == PHY_LINK_OFF) {
-                W5500_LOG_CABLE_DISCONNECT(); //LOG
-                pxClient->xState = eW5500StateDisconnect;
-              }
+      else if (xTxObj.pucAddr == (uint8_t*)0x55) {
+        uint8_t ucIrqValue = getSn_IR(pxClient->ucIndex);
+        if (ucIrqValue & Sn_IR_RECV) {
+          uint16_t us = w5500_client_receive(ucRxBuf, sizeof(ucRxBuf), pxClient->ucIndex);
+          if (us > 0) {
+            if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, portMAX_DELAY);
+            if (xStreamBufferSend(pxClient->xStreamRx, ucRxBuf, us, 0) != us) {
+              //LOG Error
             }
           }
         }
-        if (xTxObj.pucAddr == NULL) {
-          uint8_t uc = getSn_IR(pxClient->ucIndex);
-          if (uc & Sn_IR_RECV) {
-            if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, 0); // Timer reset
-            uint16_t us = w5500_client_receive(ucRxBuf, sizeof(ucRxBuf), pxClient->ucIndex);
-            if (us > 0) {
-              W5500_RTOS_PACKET_RECEIVED(); //LOG
-              if (xStreamBufferSend(pxClient->xStreamRx, ucRxBuf, us, 0) != us) {
-                W5500_RTOS_RX_FIFO_FULL(); //LOG
-              }
-            }
-          }
-          if (uc & Sn_IR_DISCON) {
-            pxClient->xState = eW5500StateTryForConnection;
-            W5500_RTOS_SOCKET_DISCONNECTED(); //LOG
-          }
-          // Clear socket #i all interrupt flags
-          if (uc != 0) {
-            setSn_IR(pxClient->ucIndex, 0xFF);
-          }
+        if (ucIrqValue & Sn_IR_DISCON) {
+          goto DISCONNECT;
+        }
+        // Clear socket #i all interrupt flags
+        if (ucIrqValue != 0) {
+          setSn_IR(pxClient->ucIndex, 0xFF);
         }
       }
-      break;
-      case eW5500StateDisconnect: {
-        if (pxClient->xTimIdle) xTimerStop(pxClient->xTimIdle, 0); // Timer stop
-        W5500_RTOS_SOCKET_DISCONNECTED(); //LOG
-        pxClient->xState = eW5500StateTryForConnection;
-        w5500_client_disconnect(pxClient->ucIndex);
-        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+    else {
+      uint8_t tmp;
+      ctlwizchip(CW_GET_PHYLINK, (void*)&tmp); 
+      if (tmp == PHY_LINK_OFF) {
+        goto DISCONNECT;
       }
-      break;
-      default: {
-        pxClient->xState = eW5500StateDisconnect;
-      }
-      break;
-    };
+    }
+    continue;
+    
+    DISCONNECT:
+    pxClient->xState = eW5500StateDisconnect;
+    if (pxClient->xTimIdle) xTimerStop(pxClient->xTimIdle, portMAX_DELAY);
+    setSn_IR(pxClient->ucIndex, 0xFF);
+    w5500_client_disconnect(pxClient->ucIndex);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    CONNECT:
+    pxClient->xState = eW5500StateTryForConnection;
+    while (!w5500_client_reconnect(pxClient->ucIndex)) {
+      setSn_IR(pxClient->ucIndex, 0xFF);
+      vTaskDelay(pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY));
+    }
+    if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, portMAX_DELAY);
+    xQueueReset(pxClient->xQTxItem);
+    pxClient->xState = eW5500StateTransiver;
   }
   W5500_RTOS_TASK_STOP();
   vTaskSuspend(NULL);
 }
 //-------------------------------------------------------------------------------
-void vFreeRTOSW5500Transmit (W5500TxItem_t* pxItem, uint8_t ucSocketNumber) {
+void vFreeRTOSW5500Transmit (const W5500TxItem_t* pxItem, uint8_t ucSocketNumber) {
   if (pxItem == NULL) {
     return;
   }
@@ -162,7 +161,7 @@ void vFreeRTOSW5500Transmit (W5500TxItem_t* pxItem, uint8_t ucSocketNumber) {
 //-------------------------------------------------------------------------------
 void vFreeRTOSW5500IrqHook (void) {
   W5500TxItem_t xObj = {
-    .pucAddr  = NULL,
+    .pucAddr  = (uint8_t*)0x55,
     .ulLen    = 0,
   };
   ClientObj_t* restrict pxCliArr = xCliArr;

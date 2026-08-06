@@ -123,8 +123,10 @@ bool w5500_client_init (const W5500_Cnf_t* pxConf) {
     {W5500_MEM_SIZE},
     {W5500_MEM_SIZE},
   };
-  W5500_Delay(1);
+  
   wizphy_reset();
+  W5500_Delay(1000);
+  wizphy_setphyconf((wiz_PhyConf*)&xPhyConfArray[W5500_PHY_LINK_INDEX]);
   if (ctlwizchip(CW_INIT_WIZCHIP, (void*)memsize) == -1) {
 		goto FAIL;
 	}
@@ -140,7 +142,7 @@ bool w5500_client_init (const W5500_Cnf_t* pxConf) {
     W5500_Delay(1);
     close(i);
   }
-  wizphy_setphyconf((wiz_PhyConf*)&xPhyConfArray[W5500_PHY_LINK_INDEX]);
+  
   
   // Disable :confilct:unreach:pppoe:mp
   setIMR(0x00);

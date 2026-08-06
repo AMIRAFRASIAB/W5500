@@ -106,8 +106,8 @@
 #define W5500_DHCP                         NETINFO_STATIC /// NETINFO_STATIC or NETINFO_DHCP
 #define W5500_PHY_LINK_INDEX               4
 
-#define W5500_PORT_0                       8234
-#define W5500_PORT_1                       0
+#define W5500_PORT_0                       8250
+#define W5500_PORT_1                       8251
 #define W5500_PORT_2                       0
 #define W5500_PORT_3                       0
 #define W5500_PORT_4                       0
@@ -124,8 +124,8 @@
 #define W5500_DESTINATION_IP_6             192, 168, 14,  2
 #define W5500_DESTINATION_IP_7             192, 168, 14,  2
 
-#define W5500_SOCKET_ID_0                  1234   // (0 = Disable This feature)
-#define W5500_SOCKET_ID_1                  0      // (0 = Disable This feature)
+#define W5500_SOCKET_ID_0                  8250   // (0 = Disable This feature)
+#define W5500_SOCKET_ID_1                  8251   // (0 = Disable This feature)
 #define W5500_SOCKET_ID_2                  0      // (0 = Disable This feature)
 #define W5500_SOCKET_ID_3                  0      // (0 = Disable This feature)
 #define W5500_SOCKET_ID_4                  0      // (0 = Disable This feature)
@@ -133,8 +133,8 @@
 #define W5500_SOCKET_ID_6                  0      // (0 = Disable This feature)
 #define W5500_SOCKET_ID_7                  0      // (0 = Disable This feature)
       
-#define W5500_IDLE_TIMER_PERIOD_0          0      // (0 = Disable This feature)
-#define W5500_IDLE_TIMER_PERIOD_1          0      // (0 = Disable This feature)
+#define W5500_IDLE_TIMER_PERIOD_0          5000   // (0 = Disable This feature)
+#define W5500_IDLE_TIMER_PERIOD_1          5000   // (0 = Disable This feature)
 #define W5500_IDLE_TIMER_PERIOD_2          0      // (0 = Disable This feature)
 #define W5500_IDLE_TIMER_PERIOD_3          0      // (0 = Disable This feature)
 #define W5500_IDLE_TIMER_PERIOD_4          0      // (0 = Disable This feature)
@@ -142,14 +142,14 @@
 #define W5500_IDLE_TIMER_PERIOD_6          0      // (0 = Disable This feature)
 #define W5500_IDLE_TIMER_PERIOD_7          0      // (0 = Disable This feature)
 
-#define W5500_MEM_SIZE_0                   16
-#define W5500_MEM_SIZE_1                   0
-#define W5500_MEM_SIZE_2                   0
-#define W5500_MEM_SIZE_3                   0
-#define W5500_MEM_SIZE_4                   0
-#define W5500_MEM_SIZE_5                   0
-#define W5500_MEM_SIZE_6                   0
-#define W5500_MEM_SIZE_7                   0
+#define W5500_MEM_SIZE_0                   2
+#define W5500_MEM_SIZE_1                   2
+#define W5500_MEM_SIZE_2                   2
+#define W5500_MEM_SIZE_3                   2
+#define W5500_MEM_SIZE_4                   2
+#define W5500_MEM_SIZE_5                   2
+#define W5500_MEM_SIZE_6                   2
+#define W5500_MEM_SIZE_7                   2
 
 #define W5500_RETRY_CONN_DELAY             5
 #define W5500_RETRY_COUNTS                 2
