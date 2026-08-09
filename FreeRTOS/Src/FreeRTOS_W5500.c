@@ -13,8 +13,8 @@
 #include "w55_cmd_decoder.h"
 
 const W5500TxItem_t xW55EchoItem = {
-  .pucAddr = (uint8_t*)"PONG\n",
-  .ulLen   = 5,
+  .pucAddr = (uint8_t*)":PONG;\n",
+  .ulLen   = 7,
 };
 
 typedef struct {
