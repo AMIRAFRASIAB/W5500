@@ -411,6 +411,7 @@ bool bW5500HardWareInit (void) {
 //-----------------------------------------------------------------------
 void W5500_IRQHandler (void) {
   LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_IRQ);
-  vFreeRTOSW5500IrqHook();
+  extern TaskHandle_t xTaskW5500IrqDispatcher;
+  vTaskNotifyGiveFromISR(xTaskW5500IrqDispatcher, NULL);
   portYIELD_FROM_ISR(pdTRUE);
 }

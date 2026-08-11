@@ -1,4 +1,4 @@
-
+  
 #include "socket.h"
 #include "FreeRTOS_W5500.h"
 #include "w5500_log.h"
@@ -24,6 +24,7 @@ typedef struct {
   TimerHandle_t         xTimIdle;
   W5500State_e          xState;
   QueueHandle_t         xQTxItem;
+  QueueHandle_t         xQEvent;
   uint8_t               ucIndex;
   bool                  bIdleTimerOverflowFlag;
 } ClientObj_t;
@@ -51,24 +52,19 @@ static const uint16_t usIdleTimeArr[8] = {
   W5500_IDLE_TIMER_PERIOD_6,
   W5500_IDLE_TIMER_PERIOD_7,
 };
-
+TaskHandle_t xTaskW5500IrqDispatcher = NULL;
 extern const uint16_t usPortW5500[];
 static void prvvServiceLanDecoder (void* const pvParameters);
+static void prvvServiceW5500IrqDispatcher (void* const pvParameters);
 //-------------------------------------------------------------------------------
 static void prvvIdleTimerCallbackFunction (TimerHandle_t xTimer) {
   // Timeout expired -> reconnect the socket
-  W5500TxItem_t xObj = {
-    .pucAddr  = (uint8_t*)0x77,
-    .ulLen    = 0,
-  };
-  ClientObj_t* pxObj = xCliArr;
-  uint8_t ucLen = sizeof(xCliArr) / sizeof(*xCliArr);
-  while (ucLen--) {
-    if (pxObj->xTimIdle == xTimer) {
-      xQueueSend(pxObj->xQTxItem, &xObj, 0);
+  const uint8_t ucDisConnectionEvent = Sn_IR_DISCON;
+  for (uint8_t i = 0; i < 8; i++) {
+    if (xCliArr[i].xTimIdle == xTimer) {
+      xQueueSend(xCliArr[i].xQEvent, &ucDisConnectionEvent, 0);
       return;
     }
-    pxObj++;
   }
 }
 //-------------------------------------------------------------------------------
@@ -79,6 +75,9 @@ static void prvvServiceW5500 (void* const pvParameters) {
   status = status && (pxClient->xMutexRx = xSemaphoreCreateMutex()) != NULL;
   status = status && (pxClient->xStreamRx = xStreamBufferCreate(W5500_STREAM_BUF_RX_SIZE, 1)) != NULL;
   status = status && (pxClient->xQTxItem = xQueueCreate(W5500_QUEUE_TX_LEN, sizeof(W5500TxItem_t))) != NULL;
+  status = status && (pxClient->xQEvent = xQueueCreate(W5500_QUEUE_TX_LEN, sizeof(uint8_t))) != NULL;
+  QueueSetHandle_t xQSet = NULL;
+  status = status && (xQSet = xQueueCreateSet(2 * W5500_QUEUE_TX_LEN + 1)) != NULL;
   if (usIdleTimeArr[pxClient->ucIndex] != 0) {
     status = status && (pxClient->xTimIdle = xTimerCreate(NULL, pdMS_TO_TICKS(usIdleTimeArr[pxClient->ucIndex]), pdFALSE, NULL, &prvvIdleTimerCallbackFunction)) != NULL;
   }
@@ -86,37 +85,33 @@ static void prvvServiceW5500 (void* const pvParameters) {
     W5500_RTOS_TASK_STOP(); //LOG 
     vTaskSuspend(NULL);
   }
+  xQueueAddToSet(pxClient->xQTxItem, xQSet);
+  xQueueAddToSet(pxClient->xQEvent, xQSet);
   uint8_t ucRxBuf[W5500_STREAM_BUF_RX_SIZE];
   W5500TxItem_t xTxObj;
+  QueueSetMemberHandle_t xQActive = NULL;
   goto DISCONNECT;
+  
   while (1) {
-    if (xQueueReceive(pxClient->xQTxItem, &xTxObj, pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY)) == pdTRUE) {
-      if (xTxObj.pucAddr == (uint8_t*)0x77) {
+    xQActive = xQueueSelectFromSet(xQSet, pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY));
+    if (xQActive == pxClient->xQTxItem) {
+      xQueueReceive(pxClient->xQTxItem, &xTxObj, 0);
+      if (xTxObj.pucAddr != NULL && xTxObj.ulLen != 0) {
+        send(pxClient->ucIndex, (uint8_t*)xTxObj.pucAddr, xTxObj.ulLen);
+      }
+    }
+    else if (xQActive == pxClient->xQEvent) {
+      uint8_t ucRxByteIrq = 0;
+      xQueueReceive(pxClient->xQEvent, &ucRxByteIrq, 0);
+      if (ucRxByteIrq & Sn_IR_RECV) {
+        uint16_t us = w5500_client_receive(ucRxBuf, sizeof(ucRxBuf), pxClient->ucIndex);
+        if (us > 0) {
+          if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, portMAX_DELAY);
+          xStreamBufferSend(pxClient->xStreamRx, ucRxBuf, us, 0);
+        }
+      }
+      if (ucRxByteIrq & Sn_IR_DISCON) {
         goto DISCONNECT;
-      }
-      else if (xTxObj.pucAddr != NULL && xTxObj.pucAddr != (uint8_t*)0x55) { 
-        if (send(pxClient->ucIndex, (uint8_t*)xTxObj.pucAddr, xTxObj.ulLen) != xTxObj.ulLen) {
-          goto DISCONNECT;
-        }
-      }
-      else if (xTxObj.pucAddr == (uint8_t*)0x55) {
-        uint8_t ucIrqValue = getSn_IR(pxClient->ucIndex);
-        if (ucIrqValue & Sn_IR_RECV) {
-          uint16_t us = w5500_client_receive(ucRxBuf, sizeof(ucRxBuf), pxClient->ucIndex);
-          if (us > 0) {
-            if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, portMAX_DELAY);
-            if (xStreamBufferSend(pxClient->xStreamRx, ucRxBuf, us, 0) != us) {
-              //LOG Error
-            }
-          }
-        }
-        if (ucIrqValue & Sn_IR_DISCON) {
-          goto DISCONNECT;
-        }
-        // Clear socket #i all interrupt flags
-        if (ucIrqValue != 0) {
-          setSn_IR(pxClient->ucIndex, 0xFF);
-        }
       }
     }
     else {
@@ -127,23 +122,24 @@ static void prvvServiceW5500 (void* const pvParameters) {
       }
     }
     continue;
-    
     DISCONNECT:
     pxClient->xState = eW5500StateDisconnect;
     if (pxClient->xTimIdle) xTimerStop(pxClient->xTimIdle, portMAX_DELAY);
-    setSn_IR(pxClient->ucIndex, 0xFF);
     w5500_client_disconnect(pxClient->ucIndex);
     vTaskDelay(pdMS_TO_TICKS(100));
-    
     CONNECT:
     pxClient->xState = eW5500StateTryForConnection;
     while (!w5500_client_reconnect(pxClient->ucIndex)) {
-      setSn_IR(pxClient->ucIndex, 0xFF);
       vTaskDelay(pdMS_TO_TICKS(W5500_TASK_RECONNECTION_DELAY));
     }
-    if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, portMAX_DELAY);
-    xQueueReset(pxClient->xQTxItem);
     pxClient->xState = eW5500StateTransiver;
+    portENTER_CRITICAL();
+    xQueueReset(pxClient->xQTxItem);
+    xQueueReset(pxClient->xQEvent);
+    xQueueReset(xQSet);
+    portEXIT_CRITICAL();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    if (pxClient->xTimIdle) xTimerReset(pxClient->xTimIdle, portMAX_DELAY);
   }
   W5500_RTOS_TASK_STOP();
   vTaskSuspend(NULL);
@@ -154,23 +150,9 @@ void vFreeRTOSW5500Transmit (const W5500TxItem_t* pxItem, uint8_t ucSocketNumber
     return;
   }
   QueueHandle_t xQ = xCliArr[ucSocketNumber & 0x07].xQTxItem;
-  if (xQ) {
+  W5500State_e xState = xCliArr[ucSocketNumber & 0x07].xState;
+  if (xQ && xState == eW5500StateTransiver) {
     xQueueSend(xQ, pxItem, 0);
-  }
-}
-//-------------------------------------------------------------------------------
-void vFreeRTOSW5500IrqHook (void) {
-  W5500TxItem_t xObj = {
-    .pucAddr  = (uint8_t*)0x55,
-    .ulLen    = 0,
-  };
-  ClientObj_t* restrict pxCliArr = xCliArr;
-  uint8_t ucLen = 8;
-  while (ucLen--) {
-    if (pxCliArr->xQTxItem) {
-      xQueueSendFromISR(pxCliArr->xQTxItem, &xObj, NULL);
-    }
-    pxCliArr++;
   }
 }
 //-------------------------------------------------------------------------------
@@ -209,7 +191,7 @@ bool bFreeRTOSW5500ClientInit (void) {
     snprintf(cStr, sizeof(cStr), "LAN Rx DEC %1u", i);
     bStatus = bStatus && W5500_TaskCreate(&prvvServiceLanDecoder, cStr, (W5500_RxDEC_TASK_STACK_SIZE_BYTES / 4),  &xDecSetting[i], W5500_RxDEC_TASK_PRIORITY, NULL) == pdTRUE;
   }
-  
+  bStatus = bStatus && W5500_TaskCreate(&prvvServiceW5500IrqDispatcher, "W55_IRQ", (W5500_RxDEC_TASK_STACK_SIZE_BYTES / 4),  NULL, W5500_IRQ_DISPACHER_TASK_PRIORITY, &xTaskW5500IrqDispatcher) == pdTRUE;
   if (!bStatus) {
     W5500_LOG_RTOS_INITIAL_FAIL(); //LOG
   }
@@ -279,3 +261,24 @@ void prvvServiceLanDecoder (void* const pvParameters) {
   }
   vTaskSuspend(NULL);
 }
+//-------------------------------------------------------------------------------
+void prvvServiceW5500IrqDispatcher (void* const pvParameters) {
+  vTaskDelay(pdMS_TO_TICKS(2000));
+  uint8_t ucQuantity = 0;
+  for (uint8_t i = 0; i < 8; i++) {
+    if (usPortW5500[i] != 0) {
+      ucQuantity++;
+    }
+  }
+  uint8_t ucBuf[8];
+  while (1) {
+    memset(ucBuf, 0x00, ucQuantity);
+    ulTaskNotifyTake(pdFALSE, portMAX_DELAY);
+    for (uint8_t i = 0; i < ucQuantity; i++) {
+      ucBuf[i] = getSn_IR(i);
+      setSn_IR(i, 0xFF);
+      xQueueSend(xCliArr[i].xQEvent, &ucBuf[i], 0);
+    }
+  }
+}
+
