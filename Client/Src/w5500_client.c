@@ -96,14 +96,14 @@ bool w5500_cable_getStatus (uint8_t tries, uint16_t delay) {
     }
     W5500_Delay(delay);
   }
-  W5500_LOG_CABLE_DISCONNECT();
+  W5500_LOG_ERROR("W5500: Cable disconnect\n");
   return false;
 }
 //--------------------------------------------------------------------------
 bool w5500_check_presence (void) {
   uint8_t version = getVERSIONR(); 
    if (version != 0x04) {
-    W5500_LOG_VERSION_UNKNOWN(); //LOG
+    W5500_LOG_ERROR("W5500: Version mismatch -> %u\n", version);
     return false;
   }
   return true;
@@ -112,7 +112,7 @@ bool w5500_check_presence (void) {
 bool w5500_client_init (const W5500_Cnf_t* pxConf) {
   W5500_Cnf_t xConf;
   xConf = (pxConf != NULL)? *pxConf : xStaticConf;
-  W5500_LOG_CLIENT_INIT(); //LOG
+  W5500_LOG_TRACE("W5500: Clinet initializing...\n");
   if (!bW5500HardWareInit()) {
     goto FAIL;
   }
@@ -152,6 +152,7 @@ bool w5500_client_init (const W5500_Cnf_t* pxConf) {
     if (usPortW5500[i] == 0) {
       continue;
     }
+    W5500_LOG_TRACE("W5500: Config Sn_IR port %u\n", usPortW5500[i]);
     // Enable socket number #i interrupt
     uint8_t ucTemp = getSIMR() | (0x01 << i);
     setSIMR(ucTemp);
@@ -163,7 +164,7 @@ bool w5500_client_init (const W5500_Cnf_t* pxConf) {
   return true;
   
   FAIL:
-  W5500_LOG_CLIENT_INIT_FAIL(); //LOG
+  W5500_LOG_ERROR("W5500: Clinet initialization failed\n");
   return false;
 }
 //--------------------------------------------------------------------------
@@ -173,7 +174,6 @@ int32_t w5500_client_transmit (uint8_t* buf, uint16_t len, uint8_t ucSockNum) {
   }
   int32_t ret = send(ucSockNum, buf, len);
   if (ret != len) {
-    W5500_LOG_TRANSMIT_FAIL(); //LOG
     return -1;
   }
   // Number of bytes actually sent
@@ -192,7 +192,6 @@ uint16_t w5500_client_receive (uint8_t* buf, uint16_t len, uint8_t ucSockNum) {
   uint16_t to_read = (len < rx_size) ? len : (uint16_t)rx_size;
   int32_t ret = recv(ucSockNum, buf, to_read);
   if (ret <= 0) {
-    W5500_LOG_RECEIVE_FAIL();
     return 0;
   }
   return (uint16_t)ret;
@@ -216,15 +215,15 @@ bool w5500_client_reconnect (uint8_t ucSockNum) {
   }
   // Create socket again
   if (socket(ucSockNum, Sn_MR_TCP, usSocketId[ucSockNum], 0) != ucSockNum) {
-    W5500_LOG_SOCKET_FAIL();
+    W5500_LOG_ERROR("W5500: Failed to create socket for port %u\n", usPortW5500[ucSockNum]);
     return false;
   }
   // Attempt to connect to the server
   if (connect(ucSockNum, (uint8_t*)&ucDstIpArray[ucSockNum][0], usPortW5500[ucSockNum]) != SOCK_OK) {
-    W5500_LOG_CONNECT_ATTEMP_FAIL();
+    W5500_LOG_ERROR("W5500: Failed to connect to port %u\n", usPortW5500[ucSockNum]);
     return false;
   }
-  W5500_LOG_CONNECTED(); //LOG
+  W5500_LOG_TRACE("W5500: port %u connected successfully!\n", usPortW5500[ucSockNum]);
   return true;
 }
 //--------------------------------------------------------------------------
@@ -232,6 +231,7 @@ bool w5500_client_disconnect (uint8_t ucSockNum) {
   if (ucSockNum > 7) {
     return false;
   }
+  W5500_LOG_TRACE("W5500: port %u disconnecting...\n", usPortW5500[ucSockNum]);
   uint8_t status = getSn_SR(ucSockNum);
   // Already closed
   if (status == SOCK_CLOSED) {

@@ -37,7 +37,7 @@
 #include "swo.h"
 #include "FreeRTOS.h"
 #include "task.h"
-
+//#include "event_debugger.h"
 
 
 #define W5500_SPI                          1       
@@ -87,7 +87,7 @@
 #define W5500_Delay                        vTaskDelay
 #define W5500_TaskCreate                   xTaskCreate
 #define W5500_STREAM_BUF_RX_SIZE           128
-#define W5500_QUEUE_TX_LEN                 8
+#define W5500_QUEUE_TX_LEN                 32
 #define W5500_TASK_STACK_SIZE_BYTES        2048
 #define W5500_RxDEC_TASK_STACK_SIZE_BYTES  1024
 #define W5500_IRQ_DISPACHER_TASK_PRIORITY  4
@@ -174,6 +174,8 @@
 #define W5500_RX_ENGINE_FOOTER_6           ';'
 #define W5500_RX_ENGINE_FOOTER_7           ';'
 
+#define W5500_LOG_TRACE(...)                //LOG_TRACE(__VA_ARGS__)
+#define W5500_LOG_ERROR(...)                //LOG_ERROR(__VA_ARGS__)
 
 #ifdef __cplusplus
   }

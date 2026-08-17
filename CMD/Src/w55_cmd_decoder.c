@@ -18,7 +18,7 @@ void vW55CmdDecoderUpdateTokens (const char* ARGS, uint8_t strLen, char** ppcArg
   *pucArgc = ucArgc;
 }
 //------------------------------------------------------------------------
-void vW55CmdDecode (void* pvStream, uint16_t usStreamLen, const W55DispatchItem_s* pxList, uint16_t usListLen) {
+bool bW55CmdDecode (void* pvStream, uint16_t usStreamLen, const W55DispatchItem_s* pxList, uint16_t usListLen) {
   const W55DispatchItem_s* xMatchedItems[10] = {NULL};
   char* pcArgv[16] = {0};
   uint8_t ucArgc = 0;
@@ -30,8 +30,7 @@ void vW55CmdDecode (void* pvStream, uint16_t usStreamLen, const W55DispatchItem_
     if (!strncmp(pxList[i].pcCMD, input, strlen(pxList[i].pcCMD))) {
       xMatchedItems[ucMatchCounter++] = pxList + i;
       if (ucMatchCounter >= sizeof(xMatchedItems) / sizeof(*xMatchedItems)) {
-//        LOG_ERROR(eEventHmiManyPossibleCommands);
-        return;
+        return false;
       }
     }
   }
@@ -47,10 +46,9 @@ void vW55CmdDecode (void* pvStream, uint16_t usStreamLen, const W55DispatchItem_
     targetItem->vFn(pcArgv, ucArgc);
   }
   else {
-    /* No Command Matched */
-//    LOG_WARNING(eEventHmiCmdNotFound);
+    return false;
   }
-  return;
+  return true;
 }
 
 

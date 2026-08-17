@@ -4,8 +4,7 @@
 
 
 
-
-
+/*
 #define W5500_LOG_IRQ_INIT()                //LOG_TRACE(eEventW5500GPIOIRQInitializing)
 #define W5500_LOG_GPIO_INIT()               //LOG_TRACE(eEventW5500GPIOInitializing)
 #define W5500_LOG_SPI_INIT()                //LOG_TRACE(eEventW5500SPIInitializing)
@@ -34,6 +33,7 @@
 #define W5500_RTOS_PACKET_RECEIVED()        //LOG_TRACE(eEventW5500RTOSPacketReceived)
 #define W5500_RTOS_TRY_FOR_CONNECTION()     //LOG_TRACE(eEventW5500RTOSTryForConnection)
 #define W5500_RTOS_RX_FIFO_FULL()           //LOG_ERROR(eEventW5550RTOSRxFIFOisFull)
+*/
 
 /*
 #define W5500_LOG_IRQ_INIT()               //LOG_TRACE("W5500: GPIO: IRQ initializing\n")

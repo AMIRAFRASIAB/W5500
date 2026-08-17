@@ -80,7 +80,7 @@ static uint8_t rxByte;
 /**************************************************************/
 static void prvvW5500IrqPinInit (void) {  
   #if (W5500_USE_FreeRTOS == YES)
-  W5500_LOG_IRQ_INIT(); //LOG
+  W5500_LOG_TRACE("W5500: SPI: IRQ pin initializing...\n");
   __HAL_RCC_SYSCFG_CLK_ENABLE();
   __HAL_RCC_IRQ_CLK_ENABLE();
   __DSB();
@@ -99,7 +99,7 @@ static void prvvW5500IrqPinInit (void) {
 }
 //-----------------------------------------------------------------------
 static void prvvW5500GpioInit (void) {
-  W5500_LOG_GPIO_INIT(); //LOG
+  W5500_LOG_TRACE("W5500: SPI: GPIO pin initializing...\n");
   // CS
   __HAL_RCC_CS_CLK_ENABLE();
   LL_GPIO_SetPinMode(GPIO_CS, LL_GPIO_PIN_CS, LL_GPIO_MODE_OUTPUT);
@@ -142,7 +142,7 @@ static void prvvW5500GpioInit (void) {
 }
 //-----------------------------------------------------------------------
 static bool prvbW5500SpiInit (void) {
-  W5500_LOG_SPI_INIT(); //LOG
+  W5500_LOG_TRACE("W5500: SPI: Initializing...\n");
   __HAL_RCC_SPI_CLK_ENABLE();
   __DSB();
   LL_SPI_Disable(SPI);
@@ -159,14 +159,14 @@ static bool prvbW5500SpiInit (void) {
     .TransferDirection = LL_SPI_FULL_DUPLEX,
   };
   if (LL_SPI_Init(SPI, &spix) != SUCCESS) {
-    W5500_LOG_SPI_INIT_FAIL(); //LOG
+    W5500_LOG_ERROR("W5500: SPI: Initialization failed\n");
     return false;
   }
   #if W5500_USE_FreeRTOS == YES
   hSemaphore = xSemaphoreCreateBinary();
   xMutexSpiAcccess = xSemaphoreCreateMutex();
   if (hSemaphore == NULL || xMutexSpiAcccess == NULL) {
-    W5500_LOG_SPI_SMPHR_CREATE_FAIL(); //LOG
+    W5500_LOG_TRACE("W5500: SPI: Failed to create semaphore\n");
     return false;
   }
   #endif
@@ -180,7 +180,7 @@ static bool prvbW5500SpiInit (void) {
 //-----------------------------------------------------------------------
 static void prvvW5500DmaInit (void) {
   #if W5500_SPI_USE_DMA == YES
-  W5500_LOG_DMA_INIT(); //LOG
+  W5500_LOG_TRACE("W5500: DMA: Initializing...\n");
   /* Tx */
   __HAL_RCC_DMATx_CLK_ENABLE();
   __DSB();
@@ -294,7 +294,7 @@ void vW5500SpiTransmitBurstDMA (uint8_t* pucBuf, uint16_t usLen) {
   uint32_t ulStart = W5500_GetTick();
   while (LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - ulStart > W5500_SPI_TIMEOUT) {
-      W5500_LOG_SPI_TX_BUSY(); //LOG
+      W5500_LOG_ERROR("W5500: SPI: Busy\n");
       return;
     }
     #if W5500_USE_FreeRTOS == YES
@@ -321,7 +321,7 @@ void vW5500SpiTransmitBurstDMA (uint8_t* pucBuf, uint16_t usLen) {
   LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
   LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
   if (xSemaphoreTake(hSemaphore, W5500_SPI_TIMEOUT) != pdTRUE) {
-    W5500_LOG_SMPHR_TAKE_FAIL(); //LOG
+    W5500_LOG_ERROR("W5500: SPI: Failed to take the semaphore\n");
   }
   #else 
   flag = 1;
@@ -345,7 +345,7 @@ void vW5500SpiReceiveBurstDMA (uint8_t* pucBuf, uint16_t usLen) {
   uint32_t ulStart = W5500_GetTick();
   while (LL_SPI_IsActiveFlag_BSY(SPI)) {
     if (W5500_GetTick() - ulStart > W5500_SPI_TIMEOUT) {
-      W5500_LOG_SPI_RX_BUSY(); //LOG
+      W5500_LOG_ERROR("W5500: SPI: Busy\n");
     }
     #if W5500_USE_FreeRTOS == YES
 //    taskYIELD();
@@ -370,7 +370,7 @@ void vW5500SpiReceiveBurstDMA (uint8_t* pucBuf, uint16_t usLen) {
   LL_DMA_EnableStream(DMARx, LL_DMA_STREAM_Rx);
   LL_DMA_EnableStream(DMATx, LL_DMA_STREAM_Tx);
   if (xSemaphoreTake(hSemaphore, W5500_SPI_TIMEOUT) != pdTRUE) {
-    W5500_LOG_SMPHR_TAKE_FAIL(); //LOG
+    W5500_LOG_ERROR("W5500: SPI: Failed to take the semaphore\n");
   }
   #else 
   flag = 1;

@@ -18,7 +18,7 @@ typedef struct {
 
 
 
-void vW55CmdDecode (void* pvStream, uint16_t usStreamLen, const W55DispatchItem_s* pxList, uint16_t usListLen);
+bool bW55CmdDecode (void* pvStream, uint16_t usStreamLen, const W55DispatchItem_s* pxList, uint16_t usListLen);
 
 extern const W55DispatchItem_s xCmdListPort0[];
 extern const W55DispatchItem_s xCmdListPort1[];
