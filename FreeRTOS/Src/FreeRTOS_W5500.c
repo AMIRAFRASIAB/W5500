@@ -65,6 +65,9 @@ static void serviceW5500 (void* const pvParameters) {
   static uint16_t rxSize;
   static uint16_t txSize;
   uint32_t period = W5500_TASK_FREQUENCY_PERIOD;
+  if (xHBTimerHandler) {
+    xTimerStart(xHBTimerHandler, 0);
+  }
   while (1) {
     vTaskDelay(period);
     if (!w5500_check_presence()) {
@@ -76,9 +79,6 @@ static void serviceW5500 (void* const pvParameters) {
       if (lan_disconnected_callback != NULL) {
         lan_disconnected_callback();
       }
-      if (xHBTimerHandler) {
-        xTimerStop(xHBTimerHandler, 0);
-      }
       continue;
     }
     else {
@@ -87,6 +87,7 @@ static void serviceW5500 (void* const pvParameters) {
     if (prvbHbTimOverflow) {
       prvbHbTimOverflow = false;
       w5500_client_disconnect(1);
+      vTaskDelay(100);
       continue;
     }
     if (lan_connected_callback != NULL) {
@@ -123,7 +124,7 @@ bool FreeRTOS_w5500_client_init (W5500_Cnf_t* cnf) {
   bool status = true;
   info = cnf;
   #if W5500_HEART_BEAT_TIMEOUT != 0
-  status = status && (xHBTimerHandler = xTimerCreate("W5500HBTIM", pdMS_TO_TICKS(W5500_HEART_BEAT_TIMEOUT), pdFALSE, NULL, &prvvW5500HBTimerCallbackFunction)) != NULL;
+  status = status && (xHBTimerHandler = xTimerCreate("W5500HBTIM", pdMS_TO_TICKS(W5500_HEART_BEAT_TIMEOUT), pdTRUE, NULL, &prvvW5500HBTimerCallbackFunction)) != NULL;
   #endif
   status = status && (hMutexTx = xSemaphoreCreateMutex()) != NULL;
   status = status && (hMutexRx = xSemaphoreCreateMutex()) != NULL;

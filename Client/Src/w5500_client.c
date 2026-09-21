@@ -41,14 +41,39 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #endif
-
-// Phy Configs
-wiz_PhyConf xPhyConf = {
+static const wiz_PhyConf xPhyConfArray[5] = {
+  [0] = {
   .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_HALF,
   .speed  = PHY_SPEED_10,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [1] = {
+  .by     = PHY_CONFBY_SW,
   .duplex = PHY_DUPLEX_FULL,
-  .mode   = PHY_MODE_MANUAL,
+  .speed  = PHY_SPEED_10,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [2] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_HALF,
+  .speed  = PHY_SPEED_100,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [3] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_FULL,
+  .speed  = PHY_SPEED_100,
+  .mode   = PHY_MODE_MANUAL
+  },
+  [4] = {
+  .by     = PHY_CONFBY_SW,
+  .duplex = PHY_DUPLEX_HALF,
+  .speed  = PHY_SPEED_100,
+  .mode   = PHY_MODE_AUTONEGO
+  },
 };
+
 
 #if (W5500_USER_NETWORK_CONFIG==NO)
 const W5500_Cnf_t STATIC_INFO = {
@@ -145,7 +170,9 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     { 2, 2, 2, 2, 2, 2, 2, 2 },
     { 2, 2, 2, 2, 2, 2, 2, 2 },
   };
-  W5500_Delay(1);
+  wizphy_reset();
+  W5500_Delay(1000);
+  wizphy_setphyconf((wiz_PhyConf*)&xPhyConfArray[W5500_PHY_LINK_INDEX % 5]);
   if (ctlwizchip(CW_INIT_WIZCHIP, (void*)memsize) == -1) {
 		LOG_ERROR("W5500 :: Failed to initial the LAN module");
 		return false;
@@ -165,9 +192,8 @@ bool w5500_client_init (const W5500_Cnf_t* INFO) {
     W5500_Delay(1);
     close(i);
   }
-  wizphy_setphyconf(&xPhyConf);
-  wizphy_reset();
-  W5500_Delay(200);
+  
+  
   
 //  setRTR((W5500_RETRY_CONN_DELAY * 10)); // Retry timeout in 100us units -> = 25 ms
 //  setRCR(W5500_RETRY_COUNTS);          // Retry count
@@ -287,13 +313,6 @@ bool w5500_client_reconnect (const W5500_Cnf_t* INFO) {
   if (status == SOCK_ESTABLISHED) {
     // Already connected
     return true;
-  }
-  wiz_PhyConf xConf;
-  wizphy_getphyconf(&xConf);
-  if (memcmp(&xConf, &xPhyConf, sizeof(wiz_PhyConf)) != 0) {
-    wizphy_setphyconf(&xPhyConf);
-    wizphy_reset();
-    return false;
   }
   // If socket is not closed, close it first
   if (status != SOCK_CLOSED) {
